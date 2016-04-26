@@ -29,7 +29,29 @@ you will have to implement persistence by yourself. See the
 Documentation and Help
 ----------------------
 
-Check the [wiki pages](https://github.com/ericvoid/StriderMqtt/wiki).
+To publish a QoS 0 "hello world" message, all you need to do is the following:
+
+```C#
+    var connArgs = new MqttConnectionArgs()
+    {
+        ClientId = "my-strider-client",
+        Hostname = "some-broker.com",
+        Port = 1883
+    };
+
+    using (var conn = new MqttConnection(connArgs))
+    {
+        conn.Publish(new PublishPacket() {
+            QosLevel = MqttQos.AtMostOnce,
+            Topic = "my/test/topic",
+            Message = Encoding.UTF8.GetBytes("Hello world!")
+        });
+
+        conn.Disconnect();
+    }
+```
+
+If you need more, check the [wiki pages](https://github.com/ericvoid/StriderMqtt/wiki).
 
 References
 ----------

@@ -8,15 +8,14 @@ namespace NumbersTest
 	{
 		readonly TimeSpan PollLimit = TimeSpan.FromMilliseconds(200);
 
-		bool IsPublishing; // there is an outgoing message
-
 		MqttQos Qos;
 
 		string ClientId;
 		string TopicToPublish;
 		string TopicToSubscribe;
 
-		IPersistence persistence;
+		IMqttPersistence clientPersistence;
+		NumbersPersistence numbersPersistence;
 
 		// the previous number that was published
 		int previousPublishedNumber;
@@ -24,11 +23,10 @@ namespace NumbersTest
 		// last number to deliver (inclusive)
 		int maxNumber;
 
-		string lastReceivingTopic;
-
-		public MqttClient(IPersistence pers, string topicRoot, string clientId, MqttQos qos, int maxNumber)
+		public MqttClient(NumbersPersistence numbersPersistence, IMqttPersistence clientPersistence, string topicRoot, string clientId, MqttQos qos, int maxNumber)
 		{
-			persistence = pers;
+			this.clientPersistence = clientPersistence;
+			this.numbersPersistence = numbersPersistence;
 
 			ClientId = clientId;
 			TopicToPublish = topicRoot + "/" + clientId;
@@ -36,13 +34,12 @@ namespace NumbersTest
 			Qos = qos;
 
 			this.maxNumber = maxNumber;
-			this.previousPublishedNumber = persistence.GetLastNumberSent();
+			this.previousPublishedNumber = numbersPersistence.GetLastNumberSent();
 		}
 
 		
 		public void Run()
 		{
-			IsPublishing = false;
 
 			var connArgs = new MqttConnectionArgs()
 			{
@@ -52,28 +49,29 @@ namespace NumbersTest
 				Version = MqttProtocolVersion.V3_1
 			};
 
-			using (var conn = new MqttConnection(connArgs))
+			using (var conn = new MqttConnection(connArgs, clientPersistence))
 			{
 				Console.WriteLine("{0} connected", ClientId);
 				try
 				{
 					BindEvents(conn);
 
-					if (conn.IsSessionPresent)
-					{
-						Redeliver(conn);
-					}
-					else
+					if (!conn.IsSessionPresent)
 					{
 						Subscribe(conn);
 					}
 
-					while (conn.Loop(PollLimit) && !Finished)
+					while (conn.Loop(PollLimit))
 					{
-						bool finishedPublishing = previousPublishedNumber >= maxNumber;
-						bool canPublishNext = persistence.GetLastReceived(TopicToPublish) >= previousPublishedNumber;
+						if (Finished && !conn.IsPublishing)
+						{
+							break;
+						}
 
-						if (!IsPublishing && !finishedPublishing && canPublishNext)
+						bool finishedPublishing = previousPublishedNumber >= maxNumber;
+						bool canPublishNext = numbersPersistence.GetLastReceived(TopicToPublish) >= previousPublishedNumber;
+
+						if (!conn.IsPublishing && !finishedPublishing && canPublishNext)
 						{
 							PublishNext(conn);
 						}
@@ -89,19 +87,13 @@ namespace NumbersTest
 		void BindEvents(MqttConnection conn)
 		{
 			conn.PublishReceived += HandlePublishReceived;
-			conn.PubackReceived += HandlePubackReceived;
-			conn.PubrecReceived += HandlePubrecReceived;
-			conn.PubrelReceived += HandlePubrelReceived;
-			conn.PubcompReceived += HandlePubcompReceived;
+			conn.PublishSent += HandlePublishSent;
 		}
 
 		void UnbindEvents(MqttConnection conn)
 		{
 			conn.PublishReceived -= HandlePublishReceived;
-			conn.PubackReceived -= HandlePubackReceived;
-			conn.PubrecReceived -= HandlePubrecReceived;
-			conn.PubrelReceived -= HandlePubrelReceived;
-			conn.PubcompReceived -= HandlePubcompReceived;
+			conn.PublishSent -= HandlePublishSent;
 		}
 
 		// incoming publish events
@@ -109,30 +101,12 @@ namespace NumbersTest
 
 		void HandlePublishReceived (object sender, PublishReceivedEventArgs e)
 		{
-			if (e.Packet.QosLevel == MqttQos.ExactlyOnce && persistence.IsIncomingMessageRegistered(e.Packet.PacketId))
-			{
-				return;
-			}
-
 			var number = ReadPayload(e.Packet.Message);
-			persistence.StoreIncomingMessage(e.Packet.PacketId, e.Packet.Topic, e.Packet.QosLevel, number);
+			numbersPersistence.RegisterReceivedNumber(e.Packet.Topic, number);
+
 			Console.WriteLine("{0} << broker : {1} (topic:{2})", ClientId, number, e.Packet.Topic);
 
-			if (Qos == MqttQos.AtLeastOnce && e.Packet.Topic == TopicToPublish)
-			{
-				(sender as MqttConnection).InterruptLoop = true;
-			}
-			else if (Qos == MqttQos.ExactlyOnce)
-			{
-				lastReceivingTopic = e.Packet.Topic;
-			}
-		}
-
-		void HandlePubrelReceived (object sender, IdentifiedPacketEventArgs e)
-		{
-			persistence.ReleaseIncomingPacketId(e.PacketId);
-
-			if (lastReceivingTopic == TopicToPublish)
+			if (e.Packet.Topic == TopicToPublish)
 			{
 				(sender as MqttConnection).InterruptLoop = true;
 			}
@@ -141,60 +115,12 @@ namespace NumbersTest
 		// outgoing publish events
 		// =======================
 
-		void HandlePubackReceived (object sender, IdentifiedPacketEventArgs e)
+		void HandlePublishSent (object sender, IdentifiedPacketEventArgs e)
 		{
-			persistence.SetOutgoingMessageAcknowledged(e.PacketId);
-			this.IsPublishing = false;
+			numbersPersistence.RegisterPublishedNumber(this.previousPublishedNumber);
 			(sender as MqttConnection).InterruptLoop = true;
 		}
 
-		void HandlePubrecReceived (object sender, IdentifiedPacketEventArgs e)
-		{
-			persistence.SetOutgoingMessageReceived(e.PacketId);
-		}
-
-		void HandlePubcompReceived (object sender, IdentifiedPacketEventArgs e)
-		{
-			persistence.SetOutgoingMessageAcknowledged(e.PacketId);
-			this.IsPublishing = false;
-			(sender as MqttConnection).InterruptLoop = true;
-		}
-
-
-		void Redeliver(MqttConnection conn)
-		{
-			OutgoingMessage message = persistence.GetPendingOutgoingMessage();
-
-			if (message == null)
-			{
-				return;
-			}
-
-			byte[] bytes = MakePayload(message.Number);
-
-			if (Qos == MqttQos.AtLeastOnce ||
-			    (Qos == MqttQos.ExactlyOnce && !message.Received))
-			{
-				var publish = new PublishPacket() {
-					PacketId = message.PacketId,
-					QosLevel = Qos,
-					Topic = TopicToPublish,
-					Message = bytes,
-					DupFlag = true
-				};
-
-				Console.WriteLine("{0} >> broker : Redelivering {1} (PUBLISH packet_id:{2})", ClientId, message.Number, message.PacketId);
-
-				conn.Publish(publish);
-				this.IsPublishing = true;
-			}
-			else if (Qos == MqttQos.ExactlyOnce && message.Received)
-			{
-				Console.WriteLine("{0} >> broker : Redelivering {1} (PUBREL packet_id:{2})", ClientId, message.Number, message.PacketId);
-				conn.Pubrel(message.PacketId);
-				this.IsPublishing = true;
-			}
-		}
 
 		void PublishNext(MqttConnection conn)
 		{
@@ -212,20 +138,7 @@ namespace NumbersTest
 			if (Qos == MqttQos.AtMostOnce)
 			{
 				// if is qos 0, assume the number was published
-				persistence.RegisterPublishedNumber(i);
-			}
-			else
-			{
-				publish.PacketId = conn.GetNextPacketId();
-				this.IsPublishing = true;
-
-				// for qos 1 and 2 only register an outgoing inflight message
-				// must register BEFORE publish is sent
-				persistence.RegisterOutgoingMessage(new OutgoingMessage()
-                {
-					PacketId = publish.PacketId,
-					Number = i
-				});
+				numbersPersistence.RegisterPublishedNumber(i);
 			}
 
 			Console.WriteLine("{0} >> broker : Delivering {1} (PUBLISH packet_id:{2})", ClientId, i, publish.PacketId);
@@ -236,7 +149,6 @@ namespace NumbersTest
 		{
 			conn.Subscribe(new SubscribePacket()
             {
-				PacketId = conn.GetNextPacketId(),
 				Topics = new string[] { TopicToSubscribe },
 				QosLevels = new MqttQos[] { Qos }
 			});
@@ -256,7 +168,7 @@ namespace NumbersTest
 		{
 			get
 			{
-				return FinishedPublishing && FinishedReceiving && !IsPublishing;
+				return FinishedPublishing && FinishedReceiving;
 			}
 		}
 
@@ -272,7 +184,7 @@ namespace NumbersTest
 		{
 			get
 			{
-				return persistence.IsDoneReceiving(maxNumber);
+				return numbersPersistence.IsDoneReceiving(maxNumber);
 			}
 		}
 

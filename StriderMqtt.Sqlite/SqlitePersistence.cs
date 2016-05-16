@@ -4,27 +4,36 @@ using Mono.Data.Sqlite;
 using System.Collections.Generic;
 using StriderMqtt;
 
-namespace SqlitePersistenceSample
+namespace StriderMqtt.Sqlite
 {
-	public class SqlitePersistence : IMqttClientPersistence, IDisposable
+	public class SqlitePersistence : IMqttPersistence, IDisposable
 	{
 		const int ReadBufferSize = 512;
 
-		readonly string ConnectionString;
+		bool ConnectionIsManaged;
 		SqliteConnection conn;
 
 		public SqlitePersistence(string filename)
 		{
-			this.ConnectionString = "Data Source=" + filename;
+			var connectionString = "Data Source=" + filename;
 
 			if (!File.Exists(filename))
 			{
 				SqliteConnection.CreateFile(filename);
 			}
 
-			this.conn = new SqliteConnection(ConnectionString);
+			this.conn = new SqliteConnection(connectionString);
 			this.conn.Open();
 
+			ConnectionIsManaged = true;
+			CreateTables();
+		}
+
+		public SqlitePersistence(SqliteConnection connection)
+		{
+			this.conn = connection;
+
+			ConnectionIsManaged = false;
 			CreateTables();
 		}
 
@@ -36,8 +45,17 @@ namespace SqlitePersistenceSample
 				using (var command = conn.CreateCommand())
 				{
 					command.Transaction = trans;
-					command.CommandText = "CREATE TABLE IF NOT EXISTS incoming_messages " +
+					command.CommandText = "CREATE TABLE IF NOT EXISTS incoming_flows " +
 						"(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, packet_id INT)";
+					command.ExecuteNonQuery();
+				}
+
+				// stores the last used packet id
+				using (var command = conn.CreateCommand())
+				{
+					command.Transaction = trans;
+					command.CommandText = "CREATE TABLE IF NOT EXISTS last_packet_id " +
+						"(_ INT UNIQUE, id INT)";
 					command.ExecuteNonQuery();
 				}
 
@@ -45,7 +63,7 @@ namespace SqlitePersistenceSample
 				using (var command = conn.CreateCommand())
 				{
 					command.Transaction = trans;
-					command.CommandText = "CREATE TABLE IF NOT EXISTS outgoing_messages " +
+					command.CommandText = "CREATE TABLE IF NOT EXISTS outgoing_flows " +
 						"(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
 							"packet_id INT, topic TEXT, qos INT, payload BLOB, " +
 							"received BOOLEAN)";
@@ -56,33 +74,33 @@ namespace SqlitePersistenceSample
 			}
 		}
 
-		public void StoreIncomingMessage(ushort packetId)
+		public void RegisterIncomingFlow(ushort packetId)
 		{
 			using (var command = conn.CreateCommand())
 			{
-				command.CommandText = "INSERT INTO incoming_messages (packet_id) VALUES (@packet_id)";
+				command.CommandText = "INSERT INTO incoming_flows (packet_id) VALUES (@packet_id)";
 				command.Parameters.AddWithValue("@packet_id", packetId);
 				command.ExecuteNonQuery();
 			}
 		}
 
-		public void ReleaseIncomingPacketId(ushort packetId)
+		public void ReleaseIncomingFlow(ushort packetId)
 		{
 			using (var command = conn.CreateCommand())
 			{
-				command.CommandText = "DELETE from incoming_messages WHERE packet_id = @packet_id";
+				command.CommandText = "DELETE from incoming_flows WHERE packet_id = @packet_id";
 				command.Parameters.AddWithValue("@packet_id", packetId);
 				command.ExecuteNonQuery();
 			}
 		}
 
-		public bool IsIncomingMessageRegistered(ushort packetId)
+		public bool IsIncomingFlowRegistered(ushort packetId)
 		{
 			object result;
 
 			using (var command = conn.CreateCommand())
 			{
-				command.CommandText = @"SELECT 1 FROM incoming_messages
+				command.CommandText = @"SELECT 1 FROM incoming_flows
 					WHERE packet_id = @packet_id LIMIT 1";
 				command.Parameters.AddWithValue("@packet_id", packetId);
 
@@ -100,48 +118,68 @@ namespace SqlitePersistenceSample
 		}
 
 
+		public ushort LastOutgoingPacketId
+		{
+			get
+			{
+				using (var command = conn.CreateCommand())
+				{
+					command.CommandText = "SELECT id FROM last_packet_id LIMIT 1";
+					object r = command.ExecuteScalar();
+					return (ushort)(IsNull(r) ? 0L : (int)r);
+				}
+			}
 
-		public void RegisterOutgoingMessage(OutgoingMessage outgoingMessage)
+			set
+			{
+				using (var command = conn.CreateCommand())
+				{
+					command.CommandText = "INSERT OR REPLACE INTO last_packet_id (_, id) VALUES (0, @id)";
+					command.Parameters.AddWithValue("@id", value);
+					command.ExecuteNonQuery();
+				}
+			}
+		}
+
+		public void RegisterOutgoingFlow(OutgoingFlow outgoingMessage)
 		{
 			using (var command = conn.CreateCommand())
 			{
-				command.CommandText = @"INSERT INTO outgoing_messages
+				command.CommandText = @"INSERT INTO outgoing_flows
 					(packet_id, topic, qos, payload, received)
 					VALUES (@packet_id, @topic, @qos, @payload, @received)";
 				command.Parameters.AddWithValue("@packet_id", outgoingMessage.PacketId);
+				command.Parameters.AddWithValue("@topic", outgoingMessage.Topic);
+				command.Parameters.AddWithValue("@qos", (int)outgoingMessage.Qos);
 				command.Parameters.AddWithValue("@payload", outgoingMessage.Payload);
 				command.Parameters.AddWithValue("@received", false);
 				command.ExecuteNonQuery();
 			}
 		}
 
-		public OutgoingMessage GetPendingOutgoingMessage()
+		public IEnumerable<OutgoingFlow> GetPendingOutgoingFlows()
 		{
-			OutgoingMessage result;
+			List<OutgoingFlow> result = new List<OutgoingFlow>();
 
 			using (var command = conn.CreateCommand())
 			{
 				command.CommandText = @"SELECT packet_id, topic, qos, payload, received
-					FROM outgoing_messages
+					FROM outgoing_flows
 					ORDER BY id ASC LIMIT 1";
 
 				SqliteDataReader reader = command.ExecuteReader();
-				if (reader.Read())
+				while (reader.Read())
 				{
-					result = GetOutgoingMessage(reader);
-				}
-				else
-				{
-					result = null;
+					result.Add(GetOutgoingMessage(reader));
 				}
 			}
 
 			return result;
 		}
 
-		OutgoingMessage GetOutgoingMessage(SqliteDataReader reader)
+		OutgoingFlow GetOutgoingMessage(SqliteDataReader reader)
 		{
-			return new OutgoingMessage()
+			return new OutgoingFlow()
 			{
 				PacketId = (ushort)reader.GetInt32(0),
 				Topic = reader.GetString(1),
@@ -151,11 +189,11 @@ namespace SqlitePersistenceSample
 			};
 		}
 
-		public void SetOutgoingMessageReceived(ushort packetId)
+		public void SetOutgoingFlowReceived(ushort packetId)
 		{
 			using (var command = conn.CreateCommand())
 			{
-				command.CommandText = @"UPDATE outgoing_messages
+				command.CommandText = @"UPDATE outgoing_flows
 					SET received = 1
 					WHERE packet_id = @packet_id
 					AND received = 0";
@@ -164,38 +202,37 @@ namespace SqlitePersistenceSample
 			}
 		}
 
-		public void SetOutgoingMessageAcknowledged(ushort packetId)
+		public void SetOutgoingFlowCompleted(ushort packetId)
 		{
 			using (var command = conn.CreateCommand())
 			{
-				command.CommandText = "DELETE FROM outgoing_messages WHERE packet_id = @packet_id";
+				command.CommandText = "DELETE FROM outgoing_flows WHERE packet_id = @packet_id";
 				command.Parameters.AddWithValue("@packet_id", packetId);
 				command.ExecuteNonQuery();
 			}
 		}
 
-		public bool IsOutgoingQueueEmpty
+		public long OutgoingFlowsCount
 		{
 			get
 			{
-				object result;
-
 				using (var command = conn.CreateCommand())
 				{
-					command.CommandText = "SELECT 1 FROM outgoing_messages LIMIT 1";
-					result = command.ExecuteScalar();
+					command.CommandText = "SELECT COUNT(*) FROM outgoing_flows";
+					object r = command.ExecuteScalar();
+					return IsNull(r) ? 0L : (long)r;
 				}
-
-				return IsNull(result);
-
 			}
 		}
 
 
 		public void Dispose()
 		{
-			conn.Close();
-			conn.Dispose();
+			if (ConnectionIsManaged)
+			{
+				conn.Close();
+				conn.Dispose();
+			}
 		}
 
 		bool IsNull(object result)

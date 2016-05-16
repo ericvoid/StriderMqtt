@@ -8,13 +8,22 @@ namespace StriderMqtt
 	{
 		private IMqttTransport Transport;
 
+		private IMqttPersistence Persistence;
+
 		// all in ms
 		private int Keepalive;
 		private int LastRead;
 		private int LastWrite;
 
-		private ushort LastPacketId;
+		/// <summary>
+		/// Gets a value indicating whether a session in the broker is present.
+		/// </summary>
 		public bool IsSessionPresent { get; private set; }
+
+		/// <summary>
+		/// Gets a value indicating if there is an outgoing publish in the current connection.
+		/// </summary>
+		public bool IsPublishing { get; private set; }
 
 		/// <summary>
 		/// Set `true` to interrupt the `Loop` method.
@@ -54,6 +63,11 @@ namespace StriderMqtt
 		/// Occurs when a Pubcomp packet is received from broker.
 		/// </summary>
 		public event EventHandler<IdentifiedPacketEventArgs> PubcompReceived;
+
+		/// <summary>
+		/// Occurs when a publish is sent to the broker.
+		/// </summary>
+		public event EventHandler<IdentifiedPacketEventArgs> PublishSent;
 
 		/// <summary>
 		/// Occurs when a Suback packet is received from broker.
@@ -98,18 +112,23 @@ namespace StriderMqtt
 		}
 
 
-		public MqttConnection(MqttConnectionArgs args)
+		public MqttConnection(MqttConnectionArgs args, IMqttPersistence persistence=null)
 		{
 			if (args.Keepalive.TotalSeconds < 0 || args.Keepalive.TotalSeconds > ushort.MaxValue)
 			{
 				throw new ArgumentException("Keepalive should be between 0 seconds and ushort.MaxValue (18 hours)");
 			}
 
+			this.Persistence = persistence ?? new InMemoryPersistence();
+
 			this.Keepalive = (int)args.Keepalive.TotalMilliseconds; // converts to milliseconds
+			this.IsPublishing = false;
 
 			InitTransport(args);
 			Send(MakeConnectMessage(args));
 			ReceiveConnack();
+
+			ResumeOutgoingFlows();
 		}
 
 		private void InitTransport(MqttConnectionArgs args)
@@ -171,19 +190,76 @@ namespace StriderMqtt
 			this.IsSessionPresent = connack.SessionPresent;
 		}
 
+		private void ResumeOutgoingFlows()
+		{
+			// tries to redeliver if that's the case
+			foreach (var flow in Persistence.GetPendingOutgoingFlows())
+			{
+				Resume(flow);
+			}
+		}
+
+		// sends a publish with dup flag in the case of a publish redelivery
+		// or a pubrel in the case of qos2 message that we know was received by the broker
+		private void Resume(OutgoingFlow flow)
+		{
+			if (flow.Qos == MqttQos.AtLeastOnce ||
+			    (flow.Qos == MqttQos.ExactlyOnce && !flow.Received))
+			{
+				var publish = new PublishPacket() {
+					PacketId = flow.PacketId,
+					QosLevel = flow.Qos,
+					Topic = flow.Topic,
+					Message = flow.Payload,
+					DupFlag = true
+				};
+
+				Publish(publish);
+			}
+			else if (flow.Qos == MqttQos.ExactlyOnce && flow.Received)
+			{
+				Pubrel(flow.PacketId);
+			}
+
+			Persistence.LastOutgoingPacketId = flow.PacketId;
+		}
+
 
 		/// <summary>
 		/// Publishes the given packet to the broker.
 		/// </summary>
 		/// <param name="packet">Packet.</param>
-		public void Publish(PublishPacket packet)
+		public ushort Publish(PublishPacket packet)
 		{
 			if (packet.QosLevel != MqttQos.AtMostOnce)
 			{
-				LastPacketId = packet.PacketId;
+				if (packet.PacketId == 0)
+				{
+					packet.PacketId = this.GetNextPacketId();
+				}
+
+				// persistence needed only on qos levels 1 and 2
+				Persistence.RegisterOutgoingFlow(new OutgoingFlow()
+                {
+					PacketId = packet.PacketId,
+					Topic = packet.Topic,
+					Qos = packet.QosLevel,
+					Payload = packet.Message
+				});
 			}
 
-			Send(packet);
+			try
+			{
+				IsPublishing = true;
+				Send(packet);
+
+				return packet.PacketId;
+			}
+			catch
+			{
+				IsPublishing = false;
+				throw;
+			}
 		}
 
 		/// <summary>
@@ -195,19 +271,38 @@ namespace StriderMqtt
 		/// so there is no need to explicitly call the `Pubrel` method in this case.
 		/// </remarks>
 		/// <param name="packetId">Packet identifier.</param>
-		public void Pubrel(ushort packetId)
+		private void Pubrel(ushort packetId)
 		{
-			Send(new PubrelPacket() { PacketId = packetId });
+			try
+			{
+				IsPublishing = true;
+				Send(new PubrelPacket() { PacketId = packetId });
+			}
+			catch
+			{
+				IsPublishing = false;
+				throw;
+			}
 		}
 
 
 		public void Subscribe(SubscribePacket packet)
 		{
+			if (packet.PacketId == 0)
+			{
+				packet.PacketId = this.GetNextPacketId();
+			}
+
 			Send(packet);
 		}
 
 		public void Unsubscribe(UnsubscribePacket packet)
 		{
+			if (packet.PacketId == 0)
+			{
+				packet.PacketId = this.GetNextPacketId();
+			}
+
 			Send(packet);
 		}
 
@@ -225,8 +320,18 @@ namespace StriderMqtt
 
 		public ushort GetNextPacketId()
 		{
-			int n = LastPacketId + 1;
-			return (ushort) (n > Packet.MaxPacketId ? 1 : n);
+			ushort x = Persistence.LastOutgoingPacketId;
+			if (x == Packet.MaxPacketId)
+			{
+				Persistence.LastOutgoingPacketId = 1;
+				return 1;
+			}
+			else
+			{
+				x += 1;
+				Persistence.LastOutgoingPacketId = x;
+				return x;
+			}
 		}
 
 
@@ -339,40 +444,48 @@ namespace StriderMqtt
 			}
 		}
 
+
+		// -- incoming publish events --
+
 		void OnPublishReceived(PublishPacket packet)
 		{
-			if (PublishReceived != null)
+			if (packet.QosLevel == MqttQos.ExactlyOnce)
 			{
-				PublishReceived(this, new PublishReceivedEventArgs(packet));
+				OnQos2PublishReceived(packet);
 			}
-
-			switch (packet.QosLevel)
+			else
 			{
-				case MqttQos.AtLeastOnce:
+				if (PublishReceived != null)
+				{
+					PublishReceived(this, new PublishReceivedEventArgs(packet));
+				}
+
+				if (packet.QosLevel == MqttQos.AtLeastOnce)
+				{
 					Send(new PubackPacket() { PacketId = packet.PacketId });
-					break;
-				case MqttQos.ExactlyOnce:
-					Send(new PubrecPacket() { PacketId = packet.PacketId });
-					break;
+				}
 			}
 		}
 
-		void OnPubackReceived(PubackPacket packet)
+		void OnQos2PublishReceived(PublishPacket packet)
 		{
-			if (PubackReceived != null)
+			if (!Persistence.IsIncomingFlowRegistered(packet.PacketId))
 			{
-				PubackReceived(this, new IdentifiedPacketEventArgs(packet));
-			}
-		}
+				if (PublishReceived != null)
+				{
+					PublishReceived(this, new PublishReceivedEventArgs(packet));
+				}
 
-		void OnPubrecReceived(PubrecPacket packet)
-		{
-			if (PubrecReceived != null)
-			{
-				PubrecReceived(this, new IdentifiedPacketEventArgs(packet));
+				// Register the incoming packetId, so duplicate messages can be filtered.
+				// This is done after "ProcessIncomingPublish" because we can't assume the
+				// mesage was received in the case that method throws an exception.
+				Persistence.RegisterIncomingFlow(packet.PacketId);
+
+				// the ideal would be to run `PubishReceived` and `Persistence.RegisterIncomingFlow`
+				// in a single transaction (either both or neither succeeds).
 			}
 
-			Send(new PubrelPacket() { PacketId = packet.PacketId });
+			Send(new PubrecPacket() { PacketId = packet.PacketId });
 		}
 
 		void OnPubrelReceived(PubrelPacket packet)
@@ -382,7 +495,41 @@ namespace StriderMqtt
 				PubrelReceived(this, new IdentifiedPacketEventArgs(packet));
 			}
 
+			Persistence.ReleaseIncomingFlow(packet.PacketId);
+
 			Send(new PubcompPacket() { PacketId = packet.PacketId });
+		}
+
+
+		// -- outgoing publish events --
+
+		void OnPubackReceived(PubackPacket packet)
+		{
+			if (PubackReceived != null)
+			{
+				PubackReceived(this, new IdentifiedPacketEventArgs(packet));
+			}
+
+			if (PublishSent != null)
+			{
+				PublishSent(this, new IdentifiedPacketEventArgs(packet));
+			}
+
+			Persistence.SetOutgoingFlowCompleted(packet.PacketId);
+
+			this.IsPublishing = false;
+		}
+
+		void OnPubrecReceived(PubrecPacket packet)
+		{
+			if (PubrecReceived != null)
+			{
+				PubrecReceived(this, new IdentifiedPacketEventArgs(packet));
+			}
+
+			Persistence.SetOutgoingFlowReceived(packet.PacketId);
+
+			Send(new PubrelPacket() { PacketId = packet.PacketId });
 		}
 
 		void OnPubcompReceived(PubcompPacket packet)
@@ -391,7 +538,19 @@ namespace StriderMqtt
 			{
 				PubcompReceived(this, new IdentifiedPacketEventArgs(packet));
 			}
+
+			if (PublishSent != null)
+			{
+				PublishSent(this, new IdentifiedPacketEventArgs(packet));
+			}
+
+			Persistence.SetOutgoingFlowCompleted(packet.PacketId);
+
+			this.IsPublishing = false;
 		}
+
+
+		// -- subscription events --
 
 		void OnSubackReceived(SubackPacket packet)
 		{

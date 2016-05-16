@@ -17,19 +17,22 @@ namespace EmptyPublishing
 
 			MqttQos Qos = ParseQos(qos);
 
-			var client = new MqttClient(topic, client_id, Qos, publishCount);
-			while (!client.Finished)
+			using (var pers = new InMemoryPersistence())
 			{
-				try
+				var client = new MqttClient(topic, client_id, Qos, publishCount, pers);
+				while (!client.Finished)
 				{
-					client.Run();
-				}
-				catch (Exception ex)
-				{
-					Console.WriteLine("{0} : {1}", client_id, ex.ToString());
-				}
+					try
+					{
+						client.Run();
+					}
+					catch (Exception ex)
+					{
+						Console.WriteLine("{0} : {1}", client_id, ex.ToString());
+					}
 
-				Thread.Sleep(TimeSpan.FromSeconds(1));
+					Thread.Sleep(TimeSpan.FromSeconds(1));
+				}
 			}
 
 			Console.WriteLine("{0} done", client_id);

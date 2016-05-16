@@ -19,7 +19,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Externalconsole>true</Externalconsole>
-    <Commandlineparameters>2 numberstest/07 cli0701 50</Commandlineparameters>
+    <Commandlineparameters>1 numberstest/02 cli0201 50</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
@@ -38,15 +38,17 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="MqttClient.cs" />
-    <Compile Include="SqlitePersistence.cs" />
-    <Compile Include="IPersistence.cs" />
-    <Compile Include="InMemoryPersistence.cs" />
+    <Compile Include="NumbersPersistence.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <ProjectReference Include="..\StriderMqtt\StriderMqtt.csproj">
       <Project>{401F8570-672E-43B5-9A52-5FB5CF0A3AC9}</Project>
       <Name>StriderMqtt</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\StriderMqtt.Sqlite\StriderMqtt.Sqlite.csproj">
+      <Project>{BE36FEDA-6406-4D4C-A7D5-3E167FF740F1}</Project>
+      <Name>StriderMqtt.Sqlite</Name>
     </ProjectReference>
   </ItemGroup>
 </Project>

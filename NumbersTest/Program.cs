@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using StriderMqtt;
+using StriderMqtt.Sqlite;
 
 namespace NumbersTest
 {
@@ -16,21 +17,24 @@ namespace NumbersTest
 			// Console.WriteLine("{0} starting", client_id);
 			MqttQos Qos = ParseQos(qos);
 
-			using (var p = new SqlitePersistence(client_id + ".sqlite3"))
-			// using (var p = new InMemoryPersistence())
+			using (var numbersPersistence = new NumbersPersistence(client_id + ".sqlite3"))
 			{
-				var client = new MqttClient(p, topic_root, client_id, Qos, maxNumber);
-				while (!client.Finished)
+				using (var clientPersistence = new SqlitePersistence(numbersPersistence.conn))
+				// using (var p = new InMemoryPersistence())
 				{
-					try
+					var client = new MqttClient(numbersPersistence, clientPersistence, topic_root, client_id, Qos, maxNumber);
+					while (!client.Finished)
 					{
-						client.Run();
+						try
+						{
+							client.Run();
+						}
+						catch (Exception ex)
+						{
+							Console.WriteLine("{0} : {1}", client_id, ex.ToString());
+						}
+						Thread.Sleep(TimeSpan.FromSeconds(1));
 					}
-					catch (Exception ex)
-					{
-						Console.WriteLine("{0} : {1}", client_id, ex.ToString());
-					}
-					Thread.Sleep(TimeSpan.FromSeconds(1));
 				}
 			}
 

@@ -9,9 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmptyPublishingTest", "Empt
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NumbersTest", "NumbersTest\NumbersTest.csproj", "{752F142D-2DE4-4DCA-BCE3-0E82911F51A0}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{757438BE-FAAE-4740-8F89-B37F333731D4}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlitePersistenceSample", "SqlitePersistenceSample\SqlitePersistenceSample.csproj", "{E5E4E16C-FCD7-46FD-80A8-9BF9C2FCC4BE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StriderMqtt.Sqlite", "StriderMqtt.Sqlite\StriderMqtt.Sqlite.csproj", "{BE36FEDA-6406-4D4C-A7D5-3E167FF740F1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,15 +29,14 @@ Global
 		{889E684F-FD8B-4D6E-B793-0F660483529E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{889E684F-FD8B-4D6E-B793-0F660483529E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{889E684F-FD8B-4D6E-B793-0F660483529E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E5E4E16C-FCD7-46FD-80A8-9BF9C2FCC4BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E5E4E16C-FCD7-46FD-80A8-9BF9C2FCC4BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E5E4E16C-FCD7-46FD-80A8-9BF9C2FCC4BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E5E4E16C-FCD7-46FD-80A8-9BF9C2FCC4BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE36FEDA-6406-4D4C-A7D5-3E167FF740F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE36FEDA-6406-4D4C-A7D5-3E167FF740F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE36FEDA-6406-4D4C-A7D5-3E167FF740F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE36FEDA-6406-4D4C-A7D5-3E167FF740F1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{889E684F-FD8B-4D6E-B793-0F660483529E} = {5A11FF1F-77B8-4F97-BEFA-27799B76C71B}
 		{752F142D-2DE4-4DCA-BCE3-0E82911F51A0} = {5A11FF1F-77B8-4F97-BEFA-27799B76C71B}
-		{E5E4E16C-FCD7-46FD-80A8-9BF9C2FCC4BE} = {757438BE-FAAE-4740-8F89-B37F333731D4}
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = NumbersTest\NumbersTest.csproj

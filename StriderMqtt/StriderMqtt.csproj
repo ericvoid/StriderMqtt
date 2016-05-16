@@ -30,6 +30,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -45,6 +46,7 @@
     <Compile Include="PublishPackets.cs" />
     <Compile Include="SubscriptionPackets.cs" />
     <Compile Include="Transport.cs" />
+    <Compile Include="Persistence.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

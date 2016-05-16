@@ -18,20 +18,7 @@ namespace EmptyPublishing
 		int published = 0;
 		int received = 0;
 
-		ushort incomingPacketId = 0;
-
-		Guid outgoingGuid;
-		ushort outgoingPacketId = 0;
-		bool outgoingPacketReceived = false;
-
-
-		public bool IsPublishing
-		{
-			get
-			{
-				return this.outgoingPacketId > 0;
-			}
-		}
+		IMqttPersistence persistence;
 
 		public bool Finished
 		{
@@ -41,8 +28,7 @@ namespace EmptyPublishing
 			}
 		}
 
-
-		public MqttClient(string topic, string clientId, MqttQos qos, int publishCount)
+		public MqttClient(string topic, string clientId, MqttQos qos, int publishCount, IMqttPersistence persistence)
 		{
 			ClientId = clientId;
 			TopicToPublish = topic;
@@ -50,8 +36,8 @@ namespace EmptyPublishing
 			Qos = qos;
 
 			this.publishCount = publishCount;
+			this.persistence = persistence;
 		}
-
 
 		public void Run()
 		{
@@ -64,25 +50,21 @@ namespace EmptyPublishing
 				CleanSession = false
 			};
 
-			using (var conn = new MqttConnection(connArgs))
+			using (var conn = new MqttConnection(connArgs, persistence))
 			{
 				Console.WriteLine("{0} connected", ClientId);
 				try
 				{
 					BindEvents(conn);
 
-					if (conn.IsSessionPresent || this.outgoingPacketId > 0)
-					{
-						Redeliver(conn);
-					}
-					else
+					if (!conn.IsSessionPresent)
 					{
 						Subscribe(conn);
 					}
 
 					while (conn.Loop(PollLimit) && !Finished)
 					{
-						if (!IsPublishing)
+						if (!conn.IsPublishing)
 						{
 							PublishNext(conn);
 						}
@@ -98,8 +80,7 @@ namespace EmptyPublishing
 		void Subscribe(MqttConnection conn)
 		{
 			conn.Subscribe(new SubscribePacket()
-			               {
-				PacketId = conn.GetNextPacketId(),
+			{
 				Topics = new string[] { TopicToSubscribe },
 				QosLevels = new MqttQos[] { Qos }
 			});
@@ -107,167 +88,70 @@ namespace EmptyPublishing
 
 		void PublishNext(MqttConnection conn)
 		{
-			this.outgoingGuid = Guid.NewGuid();
-			byte[] bytes = outgoingGuid.ToByteArray();
+			byte[] bytes = new byte[0];
 
+			// there is no need to get the next packet id manually,
+			// as the `Publish` method sets the value when needed
 			var publish = new PublishPacket() {
+				PacketId = conn.GetNextPacketId(),
 				QosLevel = Qos,
 				Topic = TopicToPublish,
 				Message = bytes
 			};
+
+			// but we want to print it below, so its better to
+			Console.WriteLine("{0} >> broker : Deliver {1} : PUBLISH packet_id:{2}",
+			                  ClientId, this.published, publish.PacketId);
 
 			if (Qos == MqttQos.AtMostOnce)
 			{
 				// if is qos 0, assume the number was published
 				this.published += 1;
 			}
-			else
-			{
-				var id = conn.GetNextPacketId();
-				publish.PacketId = id;
 
-				// for qos 1 and 2 only register an outgoing inflight message
-				// must register BEFORE publish is sent
-				this.outgoingPacketId = id;
-				this.outgoingPacketReceived = false;
-			}
-
-			Console.WriteLine("{0} >> broker : Delivering {1} : PUBLISH packet_id:{2}",
-			                  ClientId, this.outgoingGuid.ToString(), publish.PacketId);
 			conn.Publish(publish);
-		}
-
-		void Redeliver(MqttConnection conn)
-		{
-			if (this.outgoingPacketId != 0)
-			{
-				byte[] bytes = outgoingGuid.ToByteArray();
-
-				if (Qos == MqttQos.AtLeastOnce || (Qos == MqttQos.ExactlyOnce && !this.outgoingPacketReceived))
-				{
-					var publish = new PublishPacket() {
-						PacketId = this.outgoingPacketId,
-						QosLevel = Qos,
-						Topic = TopicToPublish,
-						Message = bytes,
-						DupFlag = true
-					};
-
-					Console.WriteLine("{0} >> broker : Redelivering {1} : PUBLISH packet_id:{2}",
-					                  ClientId, this.outgoingGuid.ToString(), this.outgoingPacketId);
-
-					conn.Publish(publish);
-				}
-				else if (Qos == MqttQos.ExactlyOnce && this.outgoingPacketReceived)
-				{
-					Console.WriteLine("{0} >> broker : Redelivering {1} : PUBREL packet_id:{2}",
-					                  ClientId, this.outgoingGuid.ToString(), this.outgoingPacketId);
-					conn.Pubrel(this.outgoingPacketId);
-				}
-			}
 		}
 
 
 		// EVENTS
 		// ==========
 
-
 		void BindEvents(MqttConnection conn)
 		{
 			conn.PublishReceived += HandlePublishReceived;
-			conn.PubackReceived += HandlePubackReceived;
-			conn.PubrecReceived += HandlePubrecReceived;
-			conn.PubrelReceived += HandlePubrelReceived;
-			conn.PubcompReceived += HandlePubcompReceived;
+			conn.PublishSent += HandlePublishSent;
 		}
 
 		void UnbindEvents(MqttConnection conn)
 		{
 			conn.PublishReceived -= HandlePublishReceived;
-			conn.PubackReceived -= HandlePubackReceived;
-			conn.PubrecReceived -= HandlePubrecReceived;
-			conn.PubrelReceived -= HandlePubrelReceived;
-			conn.PubcompReceived -= HandlePubcompReceived;
+			conn.PublishSent -= HandlePublishSent;
 		}
+
 
 		// incoming publish events
 		// =======================
 
 		void HandlePublishReceived (object sender, PublishReceivedEventArgs e)
 		{
-			if (e.Packet.QosLevel == MqttQos.ExactlyOnce)
+			// do something with the received message
+			received += 1;
+			Console.WriteLine("{0} << broker : Received {1} (topic:{2}, mid:{3})", ClientId, received, e.Packet.Topic, e.Packet.PacketId);
+			if (e.Packet.Message.Length > 0)
 			{
-				if (incomingPacketId == e.Packet.PacketId)
-				{
-					// is duplicate, the connection class will send the pubrec
-					return;
-				}
-				else if (incomingPacketId > 0)
-				{
-					throw new InvalidOperationException("Application does not support more than one inbound flow");
-				}
-
-				this.incomingPacketId = e.Packet.PacketId;
-			}
-
-			Console.WriteLine("{0} << broker : Received {1} (topic:{2})", ClientId, this.outgoingGuid.ToString(), e.Packet.Topic);
-
-			// DO STUFF WITH e.Packet.Message;
-			try
-			{
-				new Guid(e.Packet.Message);
-			}
-			catch (ArgumentNullException)
-			{
-				Console.WriteLine("    received message is empty");
-			}
-			catch (ArgumentException)
-			{
-				Console.WriteLine("    received message is not 16 bytes long");
-			}
-
-			if (e.Packet.QosLevel != MqttQos.ExactlyOnce)
-			{
-				this.received += 1;
+				Console.WriteLine("    received message is not empty");
 			}
 		}
 
-		void HandlePubrelReceived (object sender, IdentifiedPacketEventArgs e)
-		{
-			if (e.PacketId != incomingPacketId)
-			{
-				throw new InvalidOperationException("Pubrel has unexpected packet id");
-			}
-			else
-			{
-				this.received += 1;
-
-				// resets the incoming packet id
-				this.incomingPacketId = 0;
-			}
-		}
 
 		// outgoing publish events
 		// =======================
 
-		void HandlePubackReceived (object sender, IdentifiedPacketEventArgs e)
+		void HandlePublishSent (object sender, IdentifiedPacketEventArgs e)
 		{
-			this.published += 1;
-			this.outgoingPacketId = 0;
-			this.outgoingPacketReceived = false;
-			(sender as MqttConnection).InterruptLoop = true;
-		}
+			// a publish was sent to the broker
 
-		void HandlePubrecReceived (object sender, IdentifiedPacketEventArgs e)
-		{
-			this.outgoingPacketReceived = true;
-		}
-
-		void HandlePubcompReceived (object sender, IdentifiedPacketEventArgs e)
-		{
 			this.published += 1;
-			this.outgoingPacketId = 0;
-			this.outgoingPacketReceived = false;
 			(sender as MqttConnection).InterruptLoop = true;
 		}
 	}

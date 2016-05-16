@@ -22,9 +22,13 @@ The following also should be acknowledged.
 This library does *not* use concurrency or parallelism internally, as it is
 intended to use minimum resources.
 
-This lib also does *not* persist anything. If you intend to use QoS 1 or 2
-you will have to implement persistence by yourself. See the
-`SqlitePersistenceSample` project, it shows how to implement it appropriately.
+This lib provides classes for persistency. By default, it uses memory only. So
+if you intend to use QoS 1 or 2 in an unstable environment, prone to hardware,
+os or process failure, you should persist in disk. A Sqlite implementation is
+provided, but you can implement `IMqttPersistence` to suit your needs.
+
+This lib does not guarantee ordering if more than one message is inflight
+per channel (incoming / outgoing).
 
 Documentation and Help
 ----------------------

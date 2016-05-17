@@ -1,6 +1,7 @@
 using System;
 using System.Net.Sockets;
 using System.Net.Security;
+using System.Threading;
 
 namespace StriderMqtt
 {
@@ -33,6 +34,7 @@ namespace StriderMqtt
 		/// </summary>
 		public bool InterruptLoop { get; set; }
 
+		private int inLoop = 0;
 
 		#region events
 		/// <summary>
@@ -351,32 +353,45 @@ namespace StriderMqtt
 				throw new ArgumentException("Poll limit should be positive");
 			}
 
-			int readThreshold = Environment.TickCount + readLimit;
-			int pollTime;
-
-			InterruptLoop = false;
-
-			while ((pollTime = readThreshold - Environment.TickCount) > 0 && !InterruptLoop)
+			// Loop shouldn't be called concurrently or recursivelly
+			if(Interlocked.CompareExchange(ref inLoop, 1, 0) == 1)
 			{
-				if (Transport.IsClosed)
-				{
-					return false;
-				}
-				else if (Transport.Poll(pollTime))
-				{
-					ReceivePacket();
-				}
-				else if (WriteWaitExpired)
-				{
-					Send(new PingreqPacket());
-				}
-				else if (ReadWaitExpired)
-				{
-					throw new MqttTimeoutException();
-				}
+				throw new InvalidProgramException("Loop is already running");
 			}
 
-			return !Transport.IsClosed;
+			try
+			{
+				int readThreshold = Environment.TickCount + readLimit;
+				int pollTime;
+
+				InterruptLoop = false;
+
+				while ((pollTime = readThreshold - Environment.TickCount) > 0 && !InterruptLoop)
+				{
+					if (Transport.IsClosed)
+					{
+						return false;
+					}
+					else if (Transport.Poll(pollTime))
+					{
+						ReceivePacket();
+					}
+					else if (WriteWaitExpired)
+					{
+						Send(new PingreqPacket());
+					}
+					else if (ReadWaitExpired)
+					{
+						throw new MqttTimeoutException();
+					}
+				}
+
+				return !Transport.IsClosed;
+			}
+			finally
+			{
+				inLoop = 0;
+			}
 		}
 
 		/// <summary>

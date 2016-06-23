@@ -2,10 +2,11 @@ Strider MQTT
 ============
 
 A very thin MQTT client written in C#. This library isn't a full fledged MQTT
-client, but implements a `MqttConnection` that encapsulates lower level aspects
+client, but made with simplicity (the first MQTT principle) in mind. It
+basically implements a `MqttConnection` that encapsulates lower level aspects
 of the protocol (like sockets, packet reading and writing, and so on).
 
-The library was written using MonoDevelop, but it doesn't require too many
+The library was written using MonoDevelop, but it shouldn't require too many
 changes to work with VisualStudio.
 
 Features

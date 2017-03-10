@@ -16,6 +16,11 @@ namespace StriderMqtt
 		private int LastRead;
 		private int LastWrite;
 
+		public MqttProtocolVersion ProtocolVersion
+		{
+			get; private set;
+		}
+
 		/// <summary>
 		/// Gets a value indicating whether a session in the broker is present.
 		/// </summary>
@@ -114,7 +119,7 @@ namespace StriderMqtt
 		}
 
 
-		public MqttConnection(MqttConnectionArgs args, IMqttPersistence persistence=null)
+		public MqttConnection(MqttConnectionArgs args, IMqttPersistence persistence=null, IMqttTransport customTransport=null)
 		{
 			if (args.Keepalive.TotalSeconds < 0 || args.Keepalive.TotalSeconds > ushort.MaxValue)
 			{
@@ -126,32 +131,39 @@ namespace StriderMqtt
 			this.Keepalive = (int)args.Keepalive.TotalMilliseconds; // converts to milliseconds
 			this.IsPublishing = false;
 
-			InitTransport(args);
+			this.ProtocolVersion = args.ProtocolVersion;
+
+			InitTransport(args, customTransport);
 			Send(MakeConnectMessage(args));
 			ReceiveConnack();
 
 			ResumeOutgoingFlows();
 		}
 
-		private void InitTransport(MqttConnectionArgs args)
+		private void InitTransport(MqttConnectionArgs args, IMqttTransport customTransport)
 		{
-			if (args.Secure)
+			if (customTransport != null)
 			{
-				Transport = new TlsTransport(args.Hostname, args.Port);
+				Transport = customTransport;
+			}
+			else if (args.Secure)
+			{
+				var tlsTransport = new TlsTransport(args.Hostname, args.Port);
+				tlsTransport.SetTimeouts(args.ReadTimeout, args.WriteTimeout);
+				Transport = tlsTransport;
 			}
 			else
 			{
-				Transport = new TcpTransport(args.Hostname, args.Port);
+				var tcpTransport = new TcpTransport(args.Hostname, args.Port);
+				tcpTransport.SetTimeouts(args.ReadTimeout, args.WriteTimeout);
+				Transport = tcpTransport;
 			}
-
-			Transport.Version = args.Version;
-			Transport.SetTimeouts(args.ReadTimeout, args.WriteTimeout);
 		}
 
 		private ConnectPacket MakeConnectMessage(MqttConnectionArgs args)
 		{
 			var conn = new ConnectPacket();
-			conn.ProtocolVersion = args.Version;
+			conn.ProtocolVersion = args.ProtocolVersion;
 
 			conn.ClientId = args.ClientId;
 			conn.Username = args.Username;
@@ -174,7 +186,7 @@ namespace StriderMqtt
 
 		private void ReceiveConnack()
 		{
-			PacketBase packet = Transport.Read();
+			PacketBase packet = ReadPacket();
 			this.LastRead = Environment.TickCount;
 
 			var connack = packet as ConnackPacket;
@@ -348,7 +360,7 @@ namespace StriderMqtt
 				throw new MqttClientException("Tried to send packet while closed");
 			}
 
-			Transport.Write(packet);
+			WritePacket(packet);
 			LastWrite = Environment.TickCount;
 		}
 
@@ -365,6 +377,27 @@ namespace StriderMqtt
 				x += 1;
 				Persistence.LastOutgoingPacketId = x;
 				return x;
+			}
+		}
+
+		// -- transport reading and writing --
+
+		PacketBase ReadPacket()
+		{
+			var reader = new PacketReader(Transport.Stream);
+
+			PacketBase packet = PacketFactory.GetInstance(reader.PacketTypeCode);
+			packet.Deserialize(reader, ProtocolVersion);
+
+			return packet;
+		}
+
+		void WritePacket(PacketBase packet)
+		{
+			using (var writer = new PacketWriter())
+			{
+				packet.Serialize(writer, ProtocolVersion);
+				writer.WriteTo(Transport.Stream);
 			}
 		}
 
@@ -453,7 +486,7 @@ namespace StriderMqtt
 
 		private void ReceivePacket()
 		{
-			PacketBase packet = Transport.Read();
+			PacketBase packet = ReadPacket();
 			LastRead = Environment.TickCount;
 
 			HandleReceivedPacket(packet);
@@ -622,7 +655,12 @@ namespace StriderMqtt
 
 		public void Dispose()
 		{
-			Transport.Close();
+			// if the transport was created by the application, leave the application
+			// clean it up.
+			if (Transport is IInternalTransport)
+			{
+				(Transport as IInternalTransport).Dispose();
+			}
 		}
 	}
 
@@ -634,7 +672,7 @@ namespace StriderMqtt
 
 		public bool Secure { get; set; }
 
-		public MqttProtocolVersion Version { get; set; }
+		public MqttProtocolVersion ProtocolVersion { get; set; }
 
 		public string ClientId { get; set; }
 		public string Username { get; set; }
@@ -651,7 +689,7 @@ namespace StriderMqtt
 
 		public MqttConnectionArgs ()
 		{
-			this.Version = MqttProtocolVersion.V3_1_1;
+			this.ProtocolVersion = MqttProtocolVersion.V3_1_1;
 			this.Keepalive = TimeSpan.FromSeconds(60);
 
 			this.Port = 1883;

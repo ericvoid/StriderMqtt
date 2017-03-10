@@ -46,7 +46,7 @@ namespace NumbersTest
 				ClientId = this.ClientId,
 				Hostname = "localhost",
 				CleanSession = false,
-				Version = MqttProtocolVersion.V3_1
+				ProtocolVersion = MqttProtocolVersion.V3_1
 			};
 
 			using (var conn = new MqttConnection(connArgs, clientPersistence))

@@ -7,61 +7,35 @@ using System.Collections.Generic;
 
 namespace StriderMqtt
 {
-	internal interface IMqttTransport
+	public interface IMqttTransport
 	{
+		/// <summary>
+		/// The Stream object to read from and write to.
+		/// </summary>
+		/// <value>The stream.</value>
 		Stream Stream { get; }
+
+		/// <summary>
+		/// Gets a value indicating whether it is possible to read from and write to the Stream.
+		/// </summary>
+		/// <value><c>true</c> if Stream is connected and available; otherwise, <c>false</c>.</value>
 		bool IsClosed { get; }
 
-		void Close();
-
+		/// <summary>
+		/// Poll the connection for the specified pollLimit time.
+		/// </summary>
+		/// <param name="pollLimit">Poll limit time in milliseconds.</param>
 		bool Poll(int pollLimit);
-		void SetTimeouts(TimeSpan readTimeout, TimeSpan writeTimeout);
-
-		MqttProtocolVersion Version { get; set; }
-
-		PacketBase Read();
-		void Write(PacketBase packet);
 	}
 
-	internal abstract class BaseTransport : IMqttTransport
-	{
-		abstract public Stream Stream { get; }
-		abstract public bool IsClosed { get; }
+	internal interface IInternalTransport : IMqttTransport, IDisposable { }
 
-		abstract public void Close();
-
-		abstract public bool Poll(int pollLimit);
-		abstract public void SetTimeouts(TimeSpan readTimeout, TimeSpan writeTimeout);
-
-		public MqttProtocolVersion Version { get; set; }
-
-		public PacketBase Read()
-		{
-			var reader = new PacketReader(this.Stream);
-
-			PacketBase packet = PacketFactory.GetInstance(reader.PacketTypeCode);
-			packet.Deserialize(reader, this.Version);
-
-			return packet;
-		}
-
-		public void Write(PacketBase packet)
-		{
-			using (var writer = new PacketWriter())
-			{
-				packet.Serialize(writer, this.Version);
-				writer.WriteTo(this.Stream);
-			}
-		}
-	}
-
-
-	internal class TcpTransport : BaseTransport
+	internal class TcpTransport : IInternalTransport
 	{
 		private TcpClient tcpClient;
 		private NetworkStream netstream;
 
-		override public Stream Stream
+		public Stream Stream
 		{
 			get
 			{
@@ -69,7 +43,7 @@ namespace StriderMqtt
 			}
 		}
 
-		override public bool IsClosed
+		public bool IsClosed
 		{
 			get
 			{
@@ -85,18 +59,18 @@ namespace StriderMqtt
 
 		}
 
-		override public void SetTimeouts(TimeSpan readTimeout, TimeSpan writeTimeout)
+		public void SetTimeouts(TimeSpan readTimeout, TimeSpan writeTimeout)
 		{
 			this.netstream.ReadTimeout = (int)readTimeout.TotalMilliseconds;
 			this.netstream.WriteTimeout = (int)writeTimeout.TotalMilliseconds;
 		}
 
-		override public bool Poll(int pollLimit)
+		public bool Poll(int pollLimit)
 		{
 			return this.tcpClient.Client.Poll(pollLimit, SelectMode.SelectRead);
 		}
 
-		override public void Close()
+		public void Dispose()
 		{
 			this.netstream.Close();
 			this.tcpClient.Close();
@@ -104,13 +78,13 @@ namespace StriderMqtt
 	}
 
 
-	internal class TlsTransport : BaseTransport
+	internal class TlsTransport : IInternalTransport
 	{
 		private TcpClient tcpClient;
 		private NetworkStream netstream;
 		private SslStream sslStream;
 
-		override public Stream Stream
+		public Stream Stream
 		{
 			get
 			{
@@ -118,7 +92,7 @@ namespace StriderMqtt
 			}
 		}
 
-		override public bool IsClosed
+		public bool IsClosed
 		{
 			get
 			{
@@ -137,18 +111,18 @@ namespace StriderMqtt
 			this.sslStream.AuthenticateAsClient(hostname);
 		}
 
-		override public void SetTimeouts(TimeSpan readTimeout, TimeSpan writeTimeout)
+		public void SetTimeouts(TimeSpan readTimeout, TimeSpan writeTimeout)
 		{
 			this.sslStream.ReadTimeout = (int)readTimeout.TotalMilliseconds;
 			this.sslStream.WriteTimeout = (int)writeTimeout.TotalMilliseconds;
 		}
 
-		override public bool Poll(int pollLimit)
+		public bool Poll(int pollLimit)
 		{
 			return this.tcpClient.Client.Poll(pollLimit, SelectMode.SelectRead);
 		}
 
-		override public void Close()
+		public void Dispose()
 		{
 			this.sslStream.Close();
 			this.netstream.Close();

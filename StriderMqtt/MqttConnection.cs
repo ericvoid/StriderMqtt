@@ -118,6 +118,9 @@ namespace StriderMqtt
 			}
 		}
 
+		bool Disconnected;
+		bool Disposed;
+
 
 		public MqttConnection(MqttConnectionArgs args, IMqttPersistence persistence=null, IMqttTransport customTransport=null)
 		{
@@ -241,6 +244,11 @@ namespace StriderMqtt
 
 		public ushort Publish(string topic, byte[] message, MqttQos qos=MqttQos.AtMostOnce, bool retained=false)
 		{
+			if (Disposed)
+			{
+				throw new ObjectDisposedException("MqttConnection");
+			}
+
 			return Publish(new PublishPacket()
 			{
 				Topic = topic,
@@ -318,6 +326,11 @@ namespace StriderMqtt
 
 		public void Subscribe(string[] topics, MqttQos[] qosLevels)
 		{
+			if (Disposed)
+			{
+				throw new ObjectDisposedException("MqttConnection");
+			}
+
 			SubscribePacket packet = new SubscribePacket()
 			{
 				Topics = topics,
@@ -339,6 +352,11 @@ namespace StriderMqtt
 
 		public void Unsubscribe(string[] topics)
 		{
+			if (Disposed)
+			{
+				throw new ObjectDisposedException("MqttConnection");
+			}
+
 			UnsubscribePacket packet = new UnsubscribePacket()
 			{
 				Topics = topics
@@ -357,7 +375,7 @@ namespace StriderMqtt
 		{
 			if (Transport.IsClosed)
 			{
-				throw new MqttClientException("Tried to send packet while closed");
+				throw new MqttClientException("Transport is closed");
 			}
 
 			WritePacket(packet);
@@ -413,6 +431,11 @@ namespace StriderMqtt
 		/// <returns>Returns true if is connected, false otherwise.</returns>
 		public bool Loop(int readLimit)
 		{
+			if (Disposed)
+			{
+				throw new ObjectDisposedException("MqttConnection");
+			}
+
 			if (readLimit < 0)
 			{
 				throw new ArgumentException("Poll limit should be positive");
@@ -421,7 +444,7 @@ namespace StriderMqtt
 			// Loop shouldn't be called concurrently or recursivelly
 			if(Interlocked.CompareExchange(ref inLoop, 1, 0) == 1)
 			{
-				throw new InvalidProgramException("Loop is already running");
+				throw new InvalidProgramException("Recursive call to Loop method not allowed");
 			}
 
 			try
@@ -650,11 +673,22 @@ namespace StriderMqtt
 
 		public void Disconnect()
 		{
-			Send(new DisconnectPacket());
+			if (Disposed)
+			{
+				throw new ObjectDisposedException("MqttConnection");
+			}
+
+			if (!Disconnected)
+			{
+				Disconnected = true;
+				Send(new DisconnectPacket());
+			}
 		}
 
 		public void Dispose()
 		{
+			Disposed = true;
+
 			// if the transport was created by the application, leave the application
 			// clean it up.
 			if (Transport is IInternalTransport)

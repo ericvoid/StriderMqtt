@@ -101,12 +101,12 @@ namespace NumbersTest
 
 		void HandlePublishReceived (object sender, PublishReceivedEventArgs e)
 		{
-			var number = ReadPayload(e.Packet.Message);
-			numbersPersistence.RegisterReceivedNumber(e.Packet.Topic, number);
+			var number = ReadPayload(e.Message);
+			numbersPersistence.RegisterReceivedNumber(e.Topic, number);
 
-			Console.WriteLine("{0} << broker : {1} (topic:{2})", ClientId, number, e.Packet.Topic);
+			Console.WriteLine("{0} << broker : {1} (topic:{2})", ClientId, number, e.Topic);
 
-			if (e.Packet.Topic == TopicToPublish)
+			if (e.Topic == TopicToPublish)
 			{
 				(sender as MqttConnection).InterruptLoop = true;
 			}

@@ -122,8 +122,8 @@ namespace EmptyPublishing
 		{
 			// do something with the received message
 			received += 1;
-			Console.WriteLine("{0} << broker : Received {1} (topic:{2}, mid:{3})", ClientId, received, e.Packet.Topic, e.Packet.PacketId);
-			if (e.Packet.Message.Length > 0)
+			Console.WriteLine("{0} << broker : Received {1} (topic:{2}, mid:{3})", ClientId, received, e.Topic, e.PacketId);
+			if (e.Message.Length > 0)
 			{
 				Console.WriteLine("    received message is not empty");
 			}

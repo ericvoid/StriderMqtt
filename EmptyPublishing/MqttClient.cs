@@ -86,26 +86,16 @@ namespace EmptyPublishing
 		{
 			byte[] bytes = new byte[0];
 
-			// there is no need to get the next packet id manually,
-			// as the `Publish` method sets the value when needed
-			var publish = new PublishPacket() {
-				PacketId = conn.GetNextPacketId(),
-				QosLevel = Qos,
-				Topic = TopicToPublish,
-				Message = bytes
-			};
-
-			// but we want to print it below, so its better to
-			Console.WriteLine("{0} >> broker : Deliver {1} : PUBLISH packet_id:{2}",
-			                  ClientId, this.published, publish.PacketId);
-
 			if (Qos == MqttQos.AtMostOnce)
 			{
-				// if is qos 0, assume the number was published
+				// if is qos 0, assume the packet will be delivered
 				this.published += 1;
 			}
 
-			conn.Publish(publish);
+			ushort packetId = conn.Publish(TopicToPublish, bytes, Qos);
+
+			Console.WriteLine("{0} >> broker : Delivering {1} : PUBLISH packet_id:{2}",
+				ClientId, this.published, packetId);
 		}
 
 
@@ -146,7 +136,6 @@ namespace EmptyPublishing
 		void HandlePublishSent (object sender, IdentifiedPacketEventArgs e)
 		{
 			// a publish was sent to the broker
-
 			this.published += 1;
 			(sender as MqttConnection).InterruptLoop = true;
 		}

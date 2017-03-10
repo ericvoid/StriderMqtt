@@ -226,12 +226,22 @@ namespace StriderMqtt
 			Persistence.LastOutgoingPacketId = flow.PacketId;
 		}
 
+		public ushort Publish(string topic, byte[] message, MqttQos qos=MqttQos.AtMostOnce, bool retained=false)
+		{
+			return Publish(new PublishPacket()
+			{
+				Topic = topic,
+				Message = message,
+				QosLevel = qos,
+				Retain = retained
+			});
+		}
 
 		/// <summary>
 		/// Publishes the given packet to the broker.
 		/// </summary>
 		/// <param name="packet">Packet.</param>
-		public ushort Publish(PublishPacket packet)
+		private ushort Publish(PublishPacket packet)
 		{
 			if (packet.QosLevel != MqttQos.AtMostOnce)
 			{
@@ -340,7 +350,7 @@ namespace StriderMqtt
 			LastWrite = Environment.TickCount;
 		}
 
-		public ushort GetNextPacketId()
+		private ushort GetNextPacketId()
 		{
 			ushort x = Persistence.LastOutgoingPacketId;
 			if (x == Packet.MaxPacketId)

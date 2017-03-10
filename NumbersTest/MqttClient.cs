@@ -129,20 +129,15 @@ namespace NumbersTest
 			this.previousPublishedNumber = i = this.previousPublishedNumber + 1;
 			byte[] bytes = MakePayload(i);
 
-			var publish = new PublishPacket() {
-				QosLevel = Qos,
-				Topic = TopicToPublish,
-				Message = bytes
-			};
-
 			if (Qos == MqttQos.AtMostOnce)
 			{
 				// if is qos 0, assume the number was published
 				numbersPersistence.RegisterPublishedNumber(i);
 			}
 
-			Console.WriteLine("{0} >> broker : Delivering {1} (PUBLISH packet_id:{2})", ClientId, i, publish.PacketId);
-			conn.Publish(publish);
+			ushort packetId = conn.Publish(TopicToPublish, bytes, Qos);
+
+			Console.WriteLine("{0} >> broker : Delivering {1} (PUBLISH packet_id:{2})", ClientId, i, packetId);
 		}
 
 		void Subscribe(MqttConnection conn)

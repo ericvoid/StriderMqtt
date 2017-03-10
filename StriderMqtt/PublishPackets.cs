@@ -28,7 +28,7 @@ namespace StriderMqtt
 		/// <summary>
 		/// Retain message flag
 		/// </summary>
-		protected bool Retain
+		public bool Retain
 		{
 			get;
 			set;

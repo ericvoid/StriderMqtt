@@ -65,8 +65,8 @@ namespace StriderMqtt.Sqlite
 					command.Transaction = trans;
 					command.CommandText = "CREATE TABLE IF NOT EXISTS outgoing_flows " +
 						"(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-							"packet_id INT, topic TEXT, qos INT, payload BLOB, " +
-							"received BOOLEAN)";
+					    "packet_id INT, retain BOOLEAN, topic TEXT, qos INT, " +
+					    "payload BLOB, received BOOLEAN)";
 					command.ExecuteNonQuery();
 				}
 
@@ -146,9 +146,10 @@ namespace StriderMqtt.Sqlite
 			using (var command = conn.CreateCommand())
 			{
 				command.CommandText = @"INSERT INTO outgoing_flows
-					(packet_id, topic, qos, payload, received)
-					VALUES (@packet_id, @topic, @qos, @payload, @received)";
+					(packet_id, retain, topic, qos, payload, received)
+					VALUES (@packet_id, @retain, @topic, @qos, @payload, @received)";
 				command.Parameters.AddWithValue("@packet_id", outgoingMessage.PacketId);
+				command.Parameters.AddWithValue("@retain", outgoingMessage.Retain);
 				command.Parameters.AddWithValue("@topic", outgoingMessage.Topic);
 				command.Parameters.AddWithValue("@qos", (int)outgoingMessage.Qos);
 				command.Parameters.AddWithValue("@payload", outgoingMessage.Payload);
@@ -163,7 +164,7 @@ namespace StriderMqtt.Sqlite
 
 			using (var command = conn.CreateCommand())
 			{
-				command.CommandText = @"SELECT packet_id, topic, qos, payload, received
+				command.CommandText = @"SELECT packet_id, retain, topic, qos, payload, received
 					FROM outgoing_flows
 					ORDER BY id ASC LIMIT 1";
 
@@ -182,10 +183,11 @@ namespace StriderMqtt.Sqlite
 			return new OutgoingFlow()
 			{
 				PacketId = (ushort)reader.GetInt32(0),
-				Topic = reader.GetString(1),
-				Qos = GetQosLevel(reader.GetByte(2)),
-				Payload =  this.GetBlob(reader, 3),
-				Received = reader.GetBoolean(4)
+				Retain = reader.GetBoolean(1),
+				Topic = reader.GetString(2),
+				Qos = GetQosLevel(reader.GetByte(3)),
+				Payload =  this.GetBlob(reader, 4),
+				Received = reader.GetBoolean(5)
 			};
 		}
 

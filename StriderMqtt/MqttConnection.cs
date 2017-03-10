@@ -210,6 +210,7 @@ namespace StriderMqtt
 			{
 				var publish = new PublishPacket() {
 					PacketId = flow.PacketId,
+					Retain = flow.Retain,
 					QosLevel = flow.Qos,
 					Topic = flow.Topic,
 					Message = flow.Payload,
@@ -254,6 +255,7 @@ namespace StriderMqtt
 				Persistence.RegisterOutgoingFlow(new OutgoingFlow()
                 {
 					PacketId = packet.PacketId,
+					Retain = packet.Retain,
 					Topic = packet.Topic,
 					Qos = packet.QosLevel,
 					Payload = packet.Message

@@ -71,6 +71,8 @@ namespace StriderMqtt
 
 		public MqttQos Qos { get; set; }
 
+		public bool Retain { get; set; }
+
 		/// <summary>
 		/// The payload that will be published.
 		/// </summary>

@@ -216,7 +216,7 @@ namespace StriderMqtt
 
 		public ConnackReturnCode ReturnCode {
 			get;
-			set;
+			private set;
 		}
 
 		internal ConnackPacket()

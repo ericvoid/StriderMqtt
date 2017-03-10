@@ -17,7 +17,7 @@ namespace StriderMqtt
         public string[] Topics
         {
 			get;
-			set;
+			internal set;
         }
 
         /// <summary>
@@ -26,11 +26,11 @@ namespace StriderMqtt
         public MqttQos[] QosLevels
         {
 			get;
-			set;
+			internal set;
         }
 
 
-        public SubscribePacket()
+        internal SubscribePacket()
         {
             this.PacketType = PacketTypeCode;
         }
@@ -75,10 +75,10 @@ namespace StriderMqtt
 	{
 		internal const byte PacketTypeCode = 0x09;
 
-		public SubackReturnCode[] GrantedQosLevels
+		internal SubackReturnCode[] GrantedQosLevels
 		{
 			get;
-			internal set;
+			private set;
 		}
 
 		internal SubackPacket()
@@ -127,10 +127,10 @@ namespace StriderMqtt
 		public string[] Topics
 		{
 			get;
-			set;
+			internal set;
 		}
 
-		public UnsubscribePacket()
+		internal UnsubscribePacket()
 		{
 			this.PacketType = PacketTypeCode;
 		}
@@ -165,7 +165,7 @@ namespace StriderMqtt
 	{
 		internal const byte PacketTypeCode = 0x0B;
 
-		public UnsubackPacket()
+		internal UnsubackPacket()
 		{
 			this.PacketType = PacketTypeCode;
 		}

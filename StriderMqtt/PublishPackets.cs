@@ -13,7 +13,7 @@ namespace StriderMqtt
 		public bool DupFlag
 		{
 			get;
-			set;
+			internal set;
 		}
 
 		/// <summary>
@@ -22,7 +22,7 @@ namespace StriderMqtt
 		public MqttQos QosLevel
 		{
 			get;
-			set;
+			internal set;
 		}
 
 		/// <summary>
@@ -31,7 +31,7 @@ namespace StriderMqtt
 		public bool Retain
 		{
 			get;
-			set;
+			internal set;
 		}
 
         /// <summary>
@@ -41,7 +41,7 @@ namespace StriderMqtt
         public string Topic
 		{
 			get;
-			set;
+			internal set;
 		}
 
         /// <summary>
@@ -51,10 +51,10 @@ namespace StriderMqtt
         public byte[] Message
 		{
 			get;
-			set;
+			internal set;
 		}
         
-        public PublishPacket()
+        internal PublishPacket()
         {
             this.PacketType = PacketTypeCode;
         }
@@ -156,7 +156,7 @@ namespace StriderMqtt
 	{
 		internal const byte PacketTypeCode = 0x05;
 
-		public PubrecPacket()
+		internal PubrecPacket()
 		{
 			this.PacketType = PacketTypeCode;
 		}
@@ -191,7 +191,7 @@ namespace StriderMqtt
 	{
 		internal const byte PacketTypeCode = 0x06;
 
-		public PubrelPacket()
+		internal PubrelPacket()
 		{
 			this.PacketType = PacketTypeCode;
 		}
@@ -234,7 +234,7 @@ namespace StriderMqtt
 	{
 		internal const byte PacketTypeCode = 0x07;
 
-		public PubcompPacket()
+		internal PubcompPacket()
 		{
 			this.PacketType = PacketTypeCode;
 		}

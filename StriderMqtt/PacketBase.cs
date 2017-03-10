@@ -43,7 +43,7 @@ namespace StriderMqtt
 		public ushort PacketId
 		{
 			get;
-			set;
+			internal set;
 		}
 	}
 

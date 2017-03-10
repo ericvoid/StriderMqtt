@@ -147,11 +147,7 @@ namespace NumbersTest
 
 		void Subscribe(MqttConnection conn)
 		{
-			conn.Subscribe(new SubscribePacket()
-            {
-				Topics = new string[] { TopicToSubscribe },
-				QosLevels = new MqttQos[] { Qos }
-			});
+			conn.Subscribe(TopicToSubscribe, Qos);
 		}
 
 		byte[] MakePayload(int i)

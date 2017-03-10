@@ -287,9 +287,19 @@ namespace StriderMqtt
 			}
 		}
 
-
-		public void Subscribe(SubscribePacket packet)
+		public void Subscribe(string topic, MqttQos qosLevel)
 		{
+			Subscribe(new string[] { topic }, new MqttQos[] { qosLevel });
+		}
+
+		public void Subscribe(string[] topics, MqttQos[] qosLevels)
+		{
+			SubscribePacket packet = new SubscribePacket()
+			{
+				Topics = topics,
+				QosLevels = qosLevels
+			};
+
 			if (packet.PacketId == 0)
 			{
 				packet.PacketId = this.GetNextPacketId();
@@ -298,8 +308,18 @@ namespace StriderMqtt
 			Send(packet);
 		}
 
-		public void Unsubscribe(UnsubscribePacket packet)
+		public void Unsubscribe(string topic)
 		{
+			Unsubscribe(new string[] { topic });
+		}
+
+		public void Unsubscribe(string[] topics)
+		{
+			UnsubscribePacket packet = new UnsubscribePacket()
+			{
+				Topics = topics
+			};
+
 			if (packet.PacketId == 0)
 			{
 				packet.PacketId = this.GetNextPacketId();

@@ -79,11 +79,7 @@ namespace EmptyPublishing
 
 		void Subscribe(MqttConnection conn)
 		{
-			conn.Subscribe(new SubscribePacket()
-			{
-				Topics = new string[] { TopicToSubscribe },
-				QosLevels = new MqttQos[] { Qos }
-			});
+			conn.Subscribe(TopicToSubscribe, Qos);
 		}
 
 		void PublishNext(MqttConnection conn)

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace StriderMqtt
 {
-	public interface IMqttTransport
+	internal interface IMqttTransport
 	{
 		Stream Stream { get; }
 		bool IsClosed { get; }

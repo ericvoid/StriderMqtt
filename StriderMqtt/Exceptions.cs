@@ -4,11 +4,11 @@ namespace StriderMqtt
 {
 	public class MqttClientException : Exception
 	{
-		public MqttClientException() : base()
+		internal MqttClientException() : base()
 		{
 		}
 
-		public MqttClientException(string message) : base(message)
+		internal MqttClientException(string message) : base(message)
 		{
 		}
 	}
@@ -18,7 +18,7 @@ namespace StriderMqtt
 	/// </summary>
 	public class MqttProtocolException : MqttClientException
 	{
-		public MqttProtocolException(string message) : base(message)
+		internal MqttProtocolException(string message) : base(message)
 		{
 		}
 	}
@@ -34,7 +34,7 @@ namespace StriderMqtt
 			private set;
 		}
 
-		public MqttConnectException(string message, ConnackReturnCode code) : base(message)
+		internal MqttConnectException(string message, ConnackReturnCode code) : base(message)
 		{
 			this.ReturnCode = code;
 		}
@@ -45,7 +45,7 @@ namespace StriderMqtt
 	/// </summary>
 	public class MqttTimeoutException : MqttClientException
 	{
-		public MqttTimeoutException() : base()
+		internal MqttTimeoutException() : base()
 		{
 		}
 	}

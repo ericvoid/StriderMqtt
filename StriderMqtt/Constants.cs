@@ -59,7 +59,7 @@ namespace StriderMqtt
 
 		public const uint MaxRemainingLength = 268435455;
 
-		public const uint MaxPacketId = 65535;
+		internal const uint MaxPacketId = 65535;
 
 		public const ushort MinTopicLength = 1;
 		public const ushort MaxTopicLength = 65535;

@@ -3,56 +3,36 @@ using System.Text;
 
 namespace StriderMqtt
 {
-    public class PublishPacket : IdentifiedPacket
+    internal class PublishPacket : IdentifiedPacket
     {
 		internal const byte PacketTypeCode = 0x03;
 
 		/// <summary>
 		/// Duplicate message flag
 		/// </summary>
-		public bool DupFlag
-		{
-			get;
-			internal set;
-		}
+		internal bool DupFlag { get; set; }
 
 		/// <summary>
 		/// Quality of Service, see `MqttQualityOfService`
 		/// </summary>
-		public MqttQos QosLevel
-		{
-			get;
-			internal set;
-		}
+		internal MqttQos QosLevel { get; set; }
 
 		/// <summary>
 		/// Retain message flag
 		/// </summary>
-		public bool Retain
-		{
-			get;
-			internal set;
-		}
+		internal bool Retain { get; set; }
 
         /// <summary>
         /// Gets or sets the topic to send the application message.
         /// </summary>
         /// <value>The topic.</value>
-        public string Topic
-		{
-			get;
-			internal set;
-		}
+		internal string Topic { get; set; }
 
         /// <summary>
         /// Gets or sets the Application Message to be sent to the broker.
         /// </summary>
         /// <value>The application message.</value>
-        public byte[] Message
-		{
-			get;
-			internal set;
-		}
+		internal byte[] Message { get; set; }
         
         internal PublishPacket()
         {
@@ -117,7 +97,7 @@ namespace StriderMqtt
     }
 
 
-	public class PubackPacket : IdentifiedPacket
+	internal class PubackPacket : IdentifiedPacket
 	{
 		internal const byte PacketTypeCode = 0x04;
 
@@ -152,7 +132,7 @@ namespace StriderMqtt
 	}
 
 
-	public class PubrecPacket : IdentifiedPacket
+	internal class PubrecPacket : IdentifiedPacket
 	{
 		internal const byte PacketTypeCode = 0x05;
 
@@ -187,7 +167,7 @@ namespace StriderMqtt
 	}
 
 
-	public class PubrelPacket : IdentifiedPacket
+	internal class PubrelPacket : IdentifiedPacket
 	{
 		internal const byte PacketTypeCode = 0x06;
 
@@ -230,7 +210,7 @@ namespace StriderMqtt
 	}
 
 
-	public class PubcompPacket : IdentifiedPacket
+	internal class PubcompPacket : IdentifiedPacket
 	{
 		internal const byte PacketTypeCode = 0x07;
 

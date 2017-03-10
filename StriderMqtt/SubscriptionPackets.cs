@@ -5,7 +5,7 @@ using System.Text;
 
 namespace StriderMqtt
 {
-	public class SubscribePacket : IdentifiedPacket
+	internal class SubscribePacket : IdentifiedPacket
     {
 		internal const byte PacketTypeCode = 0x08;
 
@@ -14,20 +14,12 @@ namespace StriderMqtt
         /// <summary>
         /// List of topics to subscribe
         /// </summary>
-        public string[] Topics
-        {
-			get;
-			internal set;
-        }
+		internal string[] Topics { get; set; }
 
         /// <summary>
         /// List of QOS Levels related to topics
         /// </summary>
-        public MqttQos[] QosLevels
-        {
-			get;
-			internal set;
-        }
+		internal MqttQos[] QosLevels { get; set; }
 
 
         internal SubscribePacket()
@@ -71,7 +63,7 @@ namespace StriderMqtt
     }
 
 
-	public class SubackPacket : IdentifiedPacket
+	internal class SubackPacket : IdentifiedPacket
 	{
 		internal const byte PacketTypeCode = 0x09;
 
@@ -120,15 +112,11 @@ namespace StriderMqtt
 	}
 
 
-	public class UnsubscribePacket : IdentifiedPacket
+	internal class UnsubscribePacket : IdentifiedPacket
 	{
 		internal const byte PacketTypeCode = 0x0A;
 
-		public string[] Topics
-		{
-			get;
-			internal set;
-		}
+		internal string[] Topics { get; set; }
 
 		internal UnsubscribePacket()
 		{
@@ -161,7 +149,7 @@ namespace StriderMqtt
 	}
 
 
-	public class UnsubackPacket : IdentifiedPacket
+	internal class UnsubackPacket : IdentifiedPacket
 	{
 		internal const byte PacketTypeCode = 0x0B;
 

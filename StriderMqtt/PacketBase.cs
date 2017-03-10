@@ -6,12 +6,12 @@ namespace StriderMqtt
     /// <summary>
     /// Base class for all MQTT messages
     /// </summary>
-    public abstract class PacketBase
+    internal abstract class PacketBase
     {       
         /// <summary>
         /// Packet type
         /// </summary>
-        public byte PacketType
+        protected internal byte PacketType
         {
 			get;
 			protected set;
@@ -35,16 +35,12 @@ namespace StriderMqtt
     }
 
 
-	public abstract class IdentifiedPacket : PacketBase
+	internal abstract class IdentifiedPacket : PacketBase
 	{
 		/// <summary>
 		/// Packet identifier
 		/// </summary>
-		public ushort PacketId
-		{
-			get;
-			internal set;
-		}
+		internal ushort PacketId { get; set; }
 	}
 
 }

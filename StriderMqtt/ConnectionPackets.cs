@@ -3,7 +3,7 @@ using System.Text;
 
 namespace StriderMqtt
 {
-    public class ConnectPacket : PacketBase
+    internal class ConnectPacket : PacketBase
     {
 		internal const byte PacketTypeCode = 0x01;
 
@@ -24,72 +24,22 @@ namespace StriderMqtt
         internal const byte CleanSessionFlagOffset = 0x01;
         
 
-        public MqttProtocolVersion ProtocolVersion
-		{
-			get;
-			set;
-		}
+		internal MqttProtocolVersion ProtocolVersion { get; set; }
 
-        public string ClientId
-		{
-			get;
-			set;
-		}
+		internal string ClientId { get; set; }
 
-        public bool WillRetain
-		{
-			get;
-			set;
-		}
-
+		internal bool WillRetain { get; set; }
+		internal MqttQos WillQosLevel { get; set; }
+		internal bool WillFlag  { get; set; }
+		internal string WillTopic { get; set; }
+		internal byte[] WillMessage { get; set; }
         
-        public MqttQos WillQosLevel
-		{
-			get;
-			set;
-		}
-
-        public bool WillFlag
-		{
-			get;
-			set;
-		}
+		internal string Username { get; set; }
+		internal string Password { get; set; }
         
-		public string WillTopic
-		{
-			get;
-			set;
-		}
+		internal bool CleanSession { get; set; }
         
-		public byte[] WillMessage
-		{
-			get;
-			set;
-		}
-        
-		public string Username
-		{
-			get;
-			set;
-		}
-
-        public string Password
-		{
-			get;
-			set;
-		}
-        
-		public bool CleanSession
-		{
-			get;
-			set;
-		}
-        
-		internal ushort KeepAlivePeriod
-		{
-			get;
-			set;
-		}
+		internal ushort KeepAlivePeriod { get; set; }
         
 
         internal ConnectPacket()
@@ -203,18 +153,18 @@ namespace StriderMqtt
     }
 
 
-	public class ConnackPacket : PacketBase
+	internal class ConnackPacket : PacketBase
 	{
 		internal const byte PacketTypeCode = 0x02;
 
 		private const byte SessionPresentFlag = 0x01;
 
-		public bool SessionPresent {
+		internal bool SessionPresent {
 			get;
 			private set;
 		}
 
-		public ConnackReturnCode ReturnCode {
+		internal ConnackReturnCode ReturnCode {
 			get;
 			private set;
 		}

@@ -2,16 +2,40 @@ using System;
 
 namespace StriderMqtt
 {
+	/// <summary>
+	/// MQTT protocol version enumeration
+	/// </summary>
 	public enum MqttProtocolVersion : byte
 	{
+		/// <summary>
+		/// Version 3.1
+		/// </summary>
 		V3_1 = 0x03,
+
+		/// <summary>
+		/// Version 3.1.1
+		/// </summary>
 		V3_1_1 = 0x04
 	}
 
+	/// <summary>
+	/// MQTT Quality Of Service levels enumeration
+	/// </summary>
 	public enum MqttQos : byte
 	{
+		/// <summary>
+		/// QoS Level 0: At most once.
+		/// </summary>
 		AtMostOnce = 0x00,
+
+		/// <summary>
+		/// QoS Level 1: At least once.
+		/// </summary>
 		AtLeastOnce = 0x01,
+
+		/// <summary>
+		/// QoS Level 2 : The exactly once.
+		/// </summary>
 		ExactlyOnce = 0x02
 	}
 

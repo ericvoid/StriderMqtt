@@ -46,6 +46,8 @@ To publish a QoS 0 "hello world" message, all you need to do is the following:
 
     using (var conn = new MqttConnection(connArgs))
     {
+        conn.Connect();
+
         conn.Publish(new PublishPacket() {
             QosLevel = MqttQos.AtMostOnce,
             Topic = "my/test/topic",

@@ -58,6 +58,11 @@ namespace StriderMqtt
 		/// </summary>
 		/// <param name="packetId">Packet identifier.</param>
 		void SetOutgoingFlowCompleted(ushort packetId);
+
+		/// <summary>
+		/// Clear all persistence data.
+		/// </summary>
+		void Clear();
 	}
 
 	public class OutgoingFlow
@@ -146,6 +151,12 @@ namespace StriderMqtt
 			outgoingFlows.RemoveAll(m => m.PacketId == packetId);
 		}
 
+		public void Clear()
+		{
+			incomingPacketIds.Clear();
+			outgoingFlows.Clear();
+			LastOutgoingPacketId = 0;
+		}
 
 		public void Dispose()
 		{

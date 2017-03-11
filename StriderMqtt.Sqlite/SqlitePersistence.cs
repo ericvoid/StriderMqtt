@@ -227,6 +227,34 @@ namespace StriderMqtt.Sqlite
 			}
 		}
 
+		public void Clear()
+		{
+			using (var trans = conn.BeginTransaction())
+			{
+				using (var command = conn.CreateCommand())
+				{
+					command.Transaction = trans;
+					command.CommandText = "DELETE FROM incoming_flows";
+					command.ExecuteNonQuery();
+				}
+
+				using (var command = conn.CreateCommand())
+				{
+					command.Transaction = trans;
+					command.CommandText = "DELETE FROM last_packet_id";
+					command.ExecuteNonQuery();
+				}
+
+				using (var command = conn.CreateCommand())
+				{
+					command.Transaction = trans;
+					command.CommandText = "DELETE FROM outgoing_flows";
+					command.ExecuteNonQuery();
+				}
+
+				trans.Commit();
+			}
+		}
 
 		public void Dispose()
 		{

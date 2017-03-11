@@ -169,7 +169,14 @@ namespace StriderMqtt
 			Send(MakeConnectMessage());
 			ReceiveConnack();
 
-			ResumeOutgoingFlows();
+			if (ConnectionArgs.CleanSession)
+			{
+				Persistence.Clear();
+			}
+			else
+			{
+				ResumeOutgoingFlows();
+			}
 
 			IsConnected = true;
 		}
@@ -742,6 +749,21 @@ namespace StriderMqtt
 			if (Transport != null && Transport is IInternalTransport)
 			{
 				(Transport as IInternalTransport).Dispose();
+			}
+
+			try
+			{
+				if (ConnectionArgs.CleanSession)
+				{
+					Persistence.Clear();
+				}
+			}
+			catch
+			{
+				// The persistence should be cleared when CleanSession is set
+				// but it is bad to throw exceptions from the Dispose method.
+				// It also shouldn't be cleared in Disconnect, because even
+				// when the connection drops, the session must me cleared.
 			}
 		}
 	}

@@ -52,7 +52,9 @@ namespace EmptyPublishing
 
 			using (var conn = new MqttConnection(connArgs, persistence))
 			{
+				conn.Connect();
 				Console.WriteLine("{0} connected", ClientId);
+
 				try
 				{
 					BindEvents(conn);

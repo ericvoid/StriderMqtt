@@ -51,6 +51,7 @@ namespace NumbersTest
 
 			using (var conn = new MqttConnection(connArgs, clientPersistence))
 			{
+				conn.Connect();
 				Console.WriteLine("{0} connected", ClientId);
 				try
 				{

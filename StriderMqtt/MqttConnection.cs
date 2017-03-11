@@ -7,6 +7,7 @@ namespace StriderMqtt
 {
 	public class MqttConnection : IDisposable
 	{
+		private MqttConnectionArgs ConnectionArgs;
 		private IMqttTransport Transport;
 
 		private IMqttPersistence Persistence;
@@ -118,12 +119,19 @@ namespace StriderMqtt
 			}
 		}
 
-		bool Disconnected;
-		bool Disposed;
+		bool WasConnectCalled;
+		bool IsConnected;
+		bool IsDisconnected;
+		bool IsDisposed;
 
 
 		public MqttConnection(MqttConnectionArgs args, IMqttPersistence persistence=null, IMqttTransport customTransport=null)
 		{
+			if (args == null)
+			{
+				throw new ArgumentNullException("args");
+			}
+
 			if (args.Keepalive.TotalSeconds < 0 || args.Keepalive.TotalSeconds > ushort.MaxValue)
 			{
 				throw new ArgumentException("Keepalive should be between 0 seconds and ushort.MaxValue (18 hours)");
@@ -136,53 +144,72 @@ namespace StriderMqtt
 
 			this.ProtocolVersion = args.ProtocolVersion;
 
-			InitTransport(args, customTransport);
-			Send(MakeConnectMessage(args));
+			this.ConnectionArgs = args;
+			this.Transport = customTransport;
+		}
+
+		public void Connect()
+		{
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException("MqttConnection");
+			}
+			else if (WasConnectCalled)
+			{
+				throw new InvalidOperationException("Connect was already called");
+			}
+
+			WasConnectCalled = true;
+
+			if (Transport == null)
+			{
+				InitTransport();
+			}
+
+			Send(MakeConnectMessage());
 			ReceiveConnack();
 
 			ResumeOutgoingFlows();
+
+			IsConnected = true;
 		}
 
-		private void InitTransport(MqttConnectionArgs args, IMqttTransport customTransport)
+		private void InitTransport()
 		{
-			if (customTransport != null)
+			if (ConnectionArgs.Secure)
 			{
-				Transport = customTransport;
-			}
-			else if (args.Secure)
-			{
-				var tlsTransport = new TlsTransport(args.Hostname, args.Port);
-				tlsTransport.SetTimeouts(args.ReadTimeout, args.WriteTimeout);
+				var tlsTransport = new TlsTransport(ConnectionArgs.Hostname, ConnectionArgs.Port);
+				tlsTransport.SetTimeouts(ConnectionArgs.ReadTimeout, ConnectionArgs.WriteTimeout);
 				Transport = tlsTransport;
 			}
 			else
 			{
-				var tcpTransport = new TcpTransport(args.Hostname, args.Port);
-				tcpTransport.SetTimeouts(args.ReadTimeout, args.WriteTimeout);
+				var tcpTransport = new TcpTransport(ConnectionArgs.Hostname, ConnectionArgs.Port);
+				tcpTransport.SetTimeouts(ConnectionArgs.ReadTimeout, ConnectionArgs.WriteTimeout);
 				Transport = tcpTransport;
 			}
 		}
 
-		private ConnectPacket MakeConnectMessage(MqttConnectionArgs args)
+		private ConnectPacket MakeConnectMessage()
 		{
 			var conn = new ConnectPacket();
-			conn.ProtocolVersion = args.ProtocolVersion;
+			conn.ProtocolVersion = ConnectionArgs.ProtocolVersion;
 
-			conn.ClientId = args.ClientId;
-			conn.Username = args.Username;
-			conn.Password = args.Password;
+			conn.ClientId = ConnectionArgs.ClientId;
+			conn.Username = ConnectionArgs.Username;
+			conn.Password = ConnectionArgs.Password;
 
-			if (args.WillMessage != null)
+			if (ConnectionArgs.WillMessage != null)
 			{
 				conn.WillFlag = true;
-				conn.WillTopic = args.WillMessage.Topic;
-				conn.WillMessage = args.WillMessage.Message;
-				conn.WillQosLevel = args.WillMessage.Qos;
-				conn.WillRetain = args.WillMessage.Retain;
+				conn.WillTopic = ConnectionArgs.WillMessage.Topic;
+				conn.WillMessage = ConnectionArgs.WillMessage.Message;
+				conn.WillQosLevel = ConnectionArgs.WillMessage.Qos;
+				conn.WillRetain = ConnectionArgs.WillMessage.Retain;
 			}
 
-			conn.CleanSession = args.CleanSession;
-			conn.KeepAlivePeriod = (ushort)args.Keepalive.TotalSeconds;
+			conn.CleanSession = ConnectionArgs.CleanSession;
+			conn.KeepAlivePeriod = (ushort)ConnectionArgs.Keepalive.TotalSeconds;
 
 			return conn;
 		}
@@ -244,9 +271,13 @@ namespace StriderMqtt
 
 		public ushort Publish(string topic, byte[] message, MqttQos qos=MqttQos.AtMostOnce, bool retained=false)
 		{
-			if (Disposed)
+			if (IsDisposed)
 			{
 				throw new ObjectDisposedException("MqttConnection");
+			}
+			else if (!IsConnected)
+			{
+				throw new InvalidOperationException("Not connected");
 			}
 
 			return Publish(new PublishPacket()
@@ -326,9 +357,13 @@ namespace StriderMqtt
 
 		public void Subscribe(string[] topics, MqttQos[] qosLevels)
 		{
-			if (Disposed)
+			if (IsDisposed)
 			{
 				throw new ObjectDisposedException("MqttConnection");
+			}
+			else if (!IsConnected)
+			{
+				throw new InvalidOperationException("Not connected");
 			}
 
 			SubscribePacket packet = new SubscribePacket()
@@ -352,9 +387,13 @@ namespace StriderMqtt
 
 		public void Unsubscribe(string[] topics)
 		{
-			if (Disposed)
+			if (IsDisposed)
 			{
 				throw new ObjectDisposedException("MqttConnection");
+			}
+			else if (!IsConnected)
+			{
+				throw new InvalidOperationException("Not connected");
 			}
 
 			UnsubscribePacket packet = new UnsubscribePacket()
@@ -431,9 +470,13 @@ namespace StriderMqtt
 		/// <returns>Returns true if is connected, false otherwise.</returns>
 		public bool Loop(int readLimit)
 		{
-			if (Disposed)
+			if (IsDisposed)
 			{
 				throw new ObjectDisposedException("MqttConnection");
+			}
+			else if (!IsConnected)
+			{
+				throw new InvalidOperationException("Not connected");
 			}
 
 			if (readLimit < 0)
@@ -673,25 +716,29 @@ namespace StriderMqtt
 
 		public void Disconnect()
 		{
-			if (Disposed)
+			if (IsDisposed)
 			{
 				throw new ObjectDisposedException("MqttConnection");
 			}
-
-			if (!Disconnected)
+			else if (!IsConnected)
 			{
-				Disconnected = true;
+				throw new InvalidOperationException("Not connected");
+			}
+
+			if (!IsDisconnected)
+			{
+				IsDisconnected = true;
 				Send(new DisconnectPacket());
 			}
 		}
 
 		public void Dispose()
 		{
-			Disposed = true;
+			IsDisposed = true;
 
 			// if the transport was created by the application, leave the application
 			// clean it up.
-			if (Transport is IInternalTransport)
+			if (Transport != null && Transport is IInternalTransport)
 			{
 				(Transport as IInternalTransport).Dispose();
 			}

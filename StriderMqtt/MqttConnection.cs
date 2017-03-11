@@ -441,12 +441,13 @@ namespace StriderMqtt
 
 		PacketBase ReadPacket()
 		{
-			var reader = new PacketReader(Transport.Stream);
+			using(var reader = new PacketReader(Transport.Stream))
+			{
+				var packet = PacketFactory.GetInstance(reader.PacketTypeCode);
+				packet.Deserialize(reader, ProtocolVersion);
 
-			PacketBase packet = PacketFactory.GetInstance(reader.PacketTypeCode);
-			packet.Deserialize(reader, ProtocolVersion);
-
-			return packet;
+				return packet;
+			}
 		}
 
 		void WritePacket(PacketBase packet)

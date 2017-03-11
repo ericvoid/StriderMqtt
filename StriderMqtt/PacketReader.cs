@@ -7,7 +7,7 @@ namespace StriderMqtt
 	/// <summary>
 	/// Mqtt packet reader with convenience methods to decode incoming data
 	/// </summary>
-	internal class PacketReader
+	internal class PacketReader : IDisposable
 	{
 		Stream input;
 
@@ -168,6 +168,11 @@ namespace StriderMqtt
 				this.input.Read(buffer, 0, remaining);
 				return buffer;
 			}
+		}
+
+		public void Dispose()
+		{
+			this.input = null;
 		}
 
 	}

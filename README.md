@@ -48,17 +48,15 @@ To publish a QoS 0 "hello world" message, all you need to do is the following:
     {
         conn.Connect();
 
-        conn.Publish(new PublishPacket() {
-            QosLevel = MqttQos.AtMostOnce,
-            Topic = "my/test/topic",
-            Message = Encoding.UTF8.GetBytes("Hello world!")
-        });
+        conn.Publish("my/test/topic",
+            Encoding.UTF8.GetBytes("Hello world!"),
+            MqttQos.AtMostOnce);
 
         conn.Disconnect();
     }
 ```
 
-If you need more, check the [wiki pages](https://github.com/ericvoid/StriderMqtt/wiki).
+Check the [wiki pages](https://github.com/ericvoid/StriderMqtt/wiki) for more details.
 
 References
 ----------

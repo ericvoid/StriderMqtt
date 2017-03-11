@@ -29,9 +29,7 @@ namespace StriderMqtt
 
 		internal override void Serialize(PacketWriter writer, MqttProtocolVersion protocolVersion)
 		{
-			if (Topics.Length != QosLevels.Length) {
-				throw new InvalidOperationException("The length of Topics should match the length of QosLevels");
-			}
+			Validate();
 
 			if (protocolVersion == MqttProtocolVersion.V3_1_1)
 			{
@@ -46,13 +44,24 @@ namespace StriderMqtt
 
 			for (int i = 0; i < Topics.Length; i++)
 			{
-				if (String.IsNullOrEmpty(this.Topics[i]) || this.Topics[i].Length > Packet.MaxTopicLength)
-				{
-					throw new InvalidOperationException("Invalid topic length");
-				}
-
 				writer.AppendTextField(this.Topics[i]);
 				writer.Append((byte)(((byte)this.QosLevels[i]) & QosPartMask));
+			}
+		}
+
+		private void Validate()
+		{
+			if (Topics.Length != QosLevels.Length)
+			{
+				throw new ArgumentException("The length of Topics should match the length of QosLevels");
+			}
+
+			foreach (string topic in Topics)
+			{
+				if (String.IsNullOrEmpty(topic) || topic.Length > Packet.MaxTopicLength)
+				{
+					throw new ArgumentException("Invalid topic length");
+				}
 			}
 		}
 

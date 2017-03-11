@@ -47,7 +47,7 @@ namespace StriderMqtt
 			{
 				if (this.QosLevel == MqttQos.AtMostOnce && this.PacketId > 0)
 				{
-					throw new InvalidOperationException("When using QoS 0 (at most once) the PacketId must not be set");
+					throw new ArgumentException("When using QoS 0 (at most once) the PacketId must not be set");
 				}
 			}
 
@@ -69,13 +69,13 @@ namespace StriderMqtt
 			// topic can't contain wildcards
 			if ((this.Topic.IndexOf('#') != -1) || (this.Topic.IndexOf('+') != -1))
 			{
-				throw new MqttProtocolException("Cannot use wildcards when publishing");
+				throw new ArgumentException("Cannot use wildcards when publishing");
 			}
 
 			// check topic length
 			if ((this.Topic.Length < Packet.MinTopicLength) || (this.Topic.Length > Packet.MaxTopicLength))
 			{
-				throw new MqttProtocolException("Invalid topic length");
+				throw new ArgumentException("Invalid topic length");
 			}
 		}
 

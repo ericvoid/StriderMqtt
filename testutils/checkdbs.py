@@ -71,7 +71,7 @@ def check_incoming_from_topic(conn, qos, t):
 
 
 def check(runid, qos, client_i):
-    dbname = 'client-%s-%d.sqlite.' % (runid, client_i)
+    dbname = 'client-%s-%d.sqlite3' % (runid, client_i)
     print 'checking', dbname
     with sqlite3.connect(dbname) as connection:
         connection.row_factory = sqlite3.Row

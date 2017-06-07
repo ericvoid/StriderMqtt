@@ -65,10 +65,11 @@ namespace StriderMqtt
 			this.netstream.WriteTimeout = (int)writeTimeout.TotalMilliseconds;
 		}
 
-		public bool Poll(int pollLimit)
-		{
-			return this.tcpClient.Client.Poll(pollLimit, SelectMode.SelectRead);
-		}
+        public bool Poll(int pollLimit)
+        {
+            var limitMicros = Conversions.MillisToMicros(pollLimit);
+            return tcpClient.Client.Poll(limitMicros, SelectMode.SelectRead);
+        }
 
 		public void Dispose()
 		{
@@ -117,10 +118,11 @@ namespace StriderMqtt
 			this.sslStream.WriteTimeout = (int)writeTimeout.TotalMilliseconds;
 		}
 
-		public bool Poll(int pollLimit)
-		{
-			return this.tcpClient.Client.Poll(pollLimit, SelectMode.SelectRead);
-		}
+        public bool Poll(int pollLimit)
+        {
+            var limitMicros = Conversions.MillisToMicros(pollLimit);
+            return tcpClient.Client.Poll(limitMicros, SelectMode.SelectRead);
+        }
 
 		public void Dispose()
 		{

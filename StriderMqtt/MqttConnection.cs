@@ -44,7 +44,7 @@ namespace StriderMqtt
 		/// If you handle some event (specially Puback, Pubcomp, Suback and Unsuback)
 		/// and you want to stop the Loop method to get the control back, set this field to `true`.
 		/// </summary>
-		public bool InterruptLoop { get; set; }
+		bool IsInterruptLoopRequested { get; set; }
 
 		private int inLoop = 0;
 
@@ -472,6 +472,17 @@ namespace StriderMqtt
 			}
 		}
 
+        /// <summary>
+        /// Interrupts the current loop in the `Loop` method.
+        /// If you handle some event (specially Puback, Pubcomp, Suback and Unsuback)
+        /// and you want to stop the Loop method to get the control back, then call this method.
+		/// It can have no effect when called outside the event handlers.
+        /// </summary>
+        public void InterruptLoop()
+        {
+            IsInterruptLoopRequested = true;
+        }
+
 
 		/// <summary>
 		/// Loop to receive packets. Use e
@@ -509,9 +520,9 @@ namespace StriderMqtt
 				int readThreshold = Environment.TickCount + readLimit;
 				int pollTime;
 
-				InterruptLoop = false;
+				IsInterruptLoopRequested = false;
 
-				while ((pollTime = readThreshold - Environment.TickCount) > 0 && !InterruptLoop)
+				while ((pollTime = readThreshold - Environment.TickCount) > 0 && !IsInterruptLoopRequested)
 				{
 					if (Transport.IsClosed)
 					{

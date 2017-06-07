@@ -139,7 +139,7 @@ namespace EmptyPublishing
 		{
 			// a publish was sent to the broker
 			this.published += 1;
-			(sender as MqttConnection).InterruptLoop = true;
+            (sender as MqttConnection).InterruptLoop();
 		}
 	}
 }

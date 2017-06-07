@@ -7,6 +7,12 @@ namespace StriderMqtt
 {
 	public class MqttConnection : IDisposable
 	{
+        /// <summary>
+        /// Defines a maximum time for polling, to give opportunity for
+        /// loop cancelation, pingreq sending, and so on.
+        /// </summary>
+        static readonly TimeSpan MaxPollTime = TimeSpan.FromSeconds(0.1);
+
 		private MqttConnectionArgs ConnectionArgs;
 		private IMqttTransport Transport;
 
@@ -511,7 +517,7 @@ namespace StriderMqtt
 					{
 						return false;
 					}
-					else if (Transport.Poll(pollTime))
+					else if (Poll(pollTime))
 					{
 						ReceivePacket();
 					}
@@ -533,13 +539,13 @@ namespace StriderMqtt
 			}
 		}
 
-		/// <summary>
-		/// Loop that tries to receive packets.
-		/// Returns true if is connected, false otherwise.
-		/// Throws MqttTimeoutException if keepalive period expires.
-		/// </summary>
-		/// <param name="readLimit">Poll limit TimeSpan.</param>
-		public bool Loop(TimeSpan readLimit)
+        /// <summary>
+        /// Loop that tries to receive packets.
+        /// Returns true if is connected, false otherwise.
+        /// Throws MqttTimeoutException if keepalive period expires.
+        /// </summary>
+        /// <param name="readLimit">Poll limit TimeSpan.</param>
+        public bool Loop(TimeSpan readLimit)
 		{
 			if (readLimit.TotalMilliseconds > Int32.MaxValue)
 			{
@@ -555,6 +561,12 @@ namespace StriderMqtt
 		public bool Loop()
 		{
 			return Loop(Keepalive);
+		}
+
+
+		bool Poll(int pollTime)
+		{
+            return Transport.Poll(Math.Min(pollTime, (int)MaxPollTime.TotalMilliseconds));
 		}
 
 

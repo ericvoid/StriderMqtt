@@ -308,6 +308,8 @@ namespace StriderMqtt
 		/// <param name="packet">Packet.</param>
 		private ushort Publish(PublishPacket packet)
 		{
+            packet.Validate();
+
 			if (packet.QosLevel != MqttQos.AtMostOnce)
 			{
 				if (packet.PacketId == 0)

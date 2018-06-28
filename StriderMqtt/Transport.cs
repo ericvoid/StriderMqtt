@@ -6,6 +6,7 @@ using System.Security.Authentication;
 using System.Collections.Generic;
 
 using System.Security.Cryptography.X509Certificates;
+using System.Net;
 
 namespace StriderMqtt
 {
@@ -55,7 +56,7 @@ namespace StriderMqtt
 
 		internal TcpTransport(string hostname, int port)
 		{
-			this.tcpClient = new TcpClient();
+            tcpClient = CreateTcpClient(hostname);
 			this.tcpClient.Connect(hostname, port);
 			this.netstream = this.tcpClient.GetStream();
 
@@ -78,6 +79,33 @@ namespace StriderMqtt
 			this.netstream.Close();
 			this.tcpClient.Close();
 		}
+
+        internal static TcpClient CreateTcpClient(string hostname)
+        {
+            IPHostEntry hostEntry = Dns.GetHostEntry(hostname);
+            bool hasIpv4Address = false;
+
+            foreach (var ip in hostEntry.AddressList)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    return new TcpClient(AddressFamily.InterNetworkV6);
+                }
+                else if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    hasIpv4Address = true;
+                }
+            }
+
+            if (hasIpv4Address)
+            {
+                return new TcpClient();
+            }
+            else
+            {
+                throw new MqttClientException("Error determining the address family of the host");
+            }
+        }
 	}
 
 
@@ -105,7 +133,7 @@ namespace StriderMqtt
 
 		internal TlsTransport(string hostname, int port)
 		{
-			this.tcpClient = new TcpClient();
+            tcpClient = TcpTransport.CreateTcpClient(hostname);
 			this.tcpClient.Connect(hostname, port);
 
 			this.netstream = this.tcpClient.GetStream();

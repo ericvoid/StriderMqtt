@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using Mono.Data.Sqlite;
+using SQLite;
 using System.Collections.Generic;
 using StriderMqtt;
 
@@ -11,25 +11,18 @@ namespace StriderMqtt.Sqlite
 		const int ReadBufferSize = 512;
 
 		bool ConnectionIsManaged;
-		SqliteConnection conn;
+		SQLiteConnection conn;
 
 		public SqlitePersistence(string filename)
 		{
 			var connectionString = "Data Source=" + filename;
-
-			if (!File.Exists(filename))
-			{
-				SqliteConnection.CreateFile(filename);
-			}
-
-			this.conn = new SqliteConnection(connectionString);
-			this.conn.Open();
+			this.conn = new SQLiteConnection(connectionString);
 
 			ConnectionIsManaged = true;
 			CreateTables();
 		}
 
-		public SqlitePersistence(SqliteConnection connection)
+		public SqlitePersistence(SQLiteConnection connection)
 		{
 			this.conn = connection;
 
@@ -168,7 +161,7 @@ namespace StriderMqtt.Sqlite
 					FROM outgoing_flows
 					ORDER BY id ASC LIMIT 1";
 
-				SqliteDataReader reader = command.ExecuteReader();
+				SQLiteDataReader reader = command.ExecuteReader();
 				while (reader.Read())
 				{
 					result.Add(GetOutgoingMessage(reader));
@@ -178,7 +171,7 @@ namespace StriderMqtt.Sqlite
 			return result;
 		}
 
-		OutgoingFlow GetOutgoingMessage(SqliteDataReader reader)
+		OutgoingFlow GetOutgoingMessage(SQLiteDataReader reader)
 		{
 			return new OutgoingFlow()
 			{
@@ -270,7 +263,7 @@ namespace StriderMqtt.Sqlite
 			return result == null || result == DBNull.Value;
 		}
 
-		private byte[] GetBlob(SqliteDataReader reader, int i)
+		private byte[] GetBlob(SQLiteDataReader reader, int i)
 		{
 			MemoryStream ms = new MemoryStream();
 			byte[] buffer = new byte[ReadBufferSize];

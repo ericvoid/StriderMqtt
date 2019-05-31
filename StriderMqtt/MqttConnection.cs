@@ -7,6 +7,12 @@ namespace StriderMqtt
 {
 	public class MqttConnection : IDisposable
 	{
+        /// <summary>
+        /// Defines a maximum time for polling, to give opportunity for
+        /// loop cancelation, pingreq sending, and so on.
+        /// </summary>
+        static readonly TimeSpan MaxPollTime = TimeSpan.FromSeconds(0.1);
+
 		private MqttConnectionArgs ConnectionArgs;
 		private IMqttTransport Transport;
 
@@ -38,7 +44,7 @@ namespace StriderMqtt
 		/// If you handle some event (specially Puback, Pubcomp, Suback and Unsuback)
 		/// and you want to stop the Loop method to get the control back, set this field to `true`.
 		/// </summary>
-		public bool InterruptLoop { get; set; }
+		bool IsInterruptLoopRequested { get; set; }
 
 		private int inLoop = 0;
 
@@ -302,6 +308,8 @@ namespace StriderMqtt
 		/// <param name="packet">Packet.</param>
 		private ushort Publish(PublishPacket packet)
 		{
+            packet.Validate();
+
 			if (packet.QosLevel != MqttQos.AtMostOnce)
 			{
 				if (packet.PacketId == 0)
@@ -466,6 +474,17 @@ namespace StriderMqtt
 			}
 		}
 
+        /// <summary>
+        /// Interrupts the current loop in the `Loop` method.
+        /// If you handle some event (specially Puback, Pubcomp, Suback and Unsuback)
+        /// and you want to stop the Loop method to get the control back, then call this method.
+		/// It can have no effect when called outside the event handlers.
+        /// </summary>
+        public void InterruptLoop()
+        {
+            IsInterruptLoopRequested = true;
+        }
+
 
 		/// <summary>
 		/// Loop to receive packets. Use e
@@ -503,15 +522,15 @@ namespace StriderMqtt
 				int readThreshold = Environment.TickCount + readLimit;
 				int pollTime;
 
-				InterruptLoop = false;
+				IsInterruptLoopRequested = false;
 
-				while ((pollTime = readThreshold - Environment.TickCount) > 0 && !InterruptLoop)
+				while ((pollTime = readThreshold - Environment.TickCount) > 0 && !IsInterruptLoopRequested)
 				{
 					if (Transport.IsClosed)
 					{
 						return false;
 					}
-					else if (Transport.Poll(pollTime))
+					else if (Poll(pollTime))
 					{
 						ReceivePacket();
 					}
@@ -533,13 +552,13 @@ namespace StriderMqtt
 			}
 		}
 
-		/// <summary>
-		/// Loop that tries to receive packets.
-		/// Returns true if is connected, false otherwise.
-		/// Throws MqttTimeoutException if keepalive period expires.
-		/// </summary>
-		/// <param name="readLimit">Poll limit TimeSpan.</param>
-		public bool Loop(TimeSpan readLimit)
+        /// <summary>
+        /// Loop that tries to receive packets.
+        /// Returns true if is connected, false otherwise.
+        /// Throws MqttTimeoutException if keepalive period expires.
+        /// </summary>
+        /// <param name="readLimit">Poll limit TimeSpan.</param>
+        public bool Loop(TimeSpan readLimit)
 		{
 			if (readLimit.TotalMilliseconds > Int32.MaxValue)
 			{
@@ -555,6 +574,12 @@ namespace StriderMqtt
 		public bool Loop()
 		{
 			return Loop(Keepalive);
+		}
+
+
+		bool Poll(int pollTime)
+		{
+            return Transport.Poll(Math.Min(pollTime, (int)MaxPollTime.TotalMilliseconds));
 		}
 
 

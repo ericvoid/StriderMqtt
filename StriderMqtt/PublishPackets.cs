@@ -41,8 +41,6 @@ namespace StriderMqtt
 
 		internal override void Serialize(PacketWriter writer, MqttProtocolVersion protocolVersion)
         {
-			ValidateTopic();
-
 			if (protocolVersion == MqttProtocolVersion.V3_1_1)
 			{
 				if (this.QosLevel == MqttQos.AtMostOnce && this.PacketId > 0)
@@ -62,6 +60,11 @@ namespace StriderMqtt
 			}
 
 			writer.Append(this.Message);
+        }
+
+        internal void Validate()
+        {
+            ValidateTopic();
         }
 
 		private void ValidateTopic()

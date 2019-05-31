@@ -109,7 +109,7 @@ namespace NumbersTest
 
 			if (e.Topic == TopicToPublish)
 			{
-				(sender as MqttConnection).InterruptLoop = true;
+                (sender as MqttConnection).InterruptLoop();
 			}
 		}
 
@@ -119,7 +119,7 @@ namespace NumbersTest
 		void HandlePublishSent (object sender, IdentifiedPacketEventArgs e)
 		{
 			numbersPersistence.RegisterPublishedNumber(this.previousPublishedNumber);
-			(sender as MqttConnection).InterruptLoop = true;
+            (sender as MqttConnection).InterruptLoop();
 		}
 
 

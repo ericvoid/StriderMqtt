@@ -25,6 +25,14 @@ namespace StriderMqtt
 			}
 		}
 
+		string PacketTypeName
+		{
+			get
+			{
+				return PacketFactory.GetPacketTypeName(PacketTypeCode);
+			}
+		}
+
 		internal bool Dup
 		{
 			get
@@ -105,7 +113,7 @@ namespace StriderMqtt
 				}
 				else
 				{
-					throw new MqttProtocolException("Could not read remaining length");
+					throw new MqttProtocolException(String.Format("Remaining length encoding error ({0})", PacketTypeName));
 				}
 			} while ((digit & 128) != 0);
 
@@ -156,7 +164,7 @@ namespace StriderMqtt
 
 			if (remaining < 0)
 			{
-				throw new MqttProtocolException("More than the remaining length was read");
+				throw new MqttProtocolException(String.Format("Payload content was larger than header's remaining length ({0})", PacketTypeName));
 			}
 			else if (remaining == 0)
 			{

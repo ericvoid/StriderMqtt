@@ -35,6 +35,49 @@ namespace StriderMqtt
 					throw new MqttProtocolException(String.Format("Packet received with invalid code {0}", packetTypeCode.ToString("X")));
 			}
 		}
+
+		internal static string GetPacketTypeName(byte packetTypeCode)
+		{
+			switch (packetTypeCode)
+			{
+				case ConnectPacket.PacketTypeCode:
+					return "CONNECT";
+				case ConnackPacket.PacketTypeCode:
+					return "CONNACK";
+
+				case PublishPacket.PacketTypeCode:
+					return "PUBLISH";
+
+				case PubackPacket.PacketTypeCode:
+					return "PUBACK";
+				case PubrecPacket.PacketTypeCode:
+					return "PUBREC";
+				case PubrelPacket.PacketTypeCode:
+					return "PUBREL";
+				case PubcompPacket.PacketTypeCode:
+					return "PUBCOMP";
+
+				case SubscribePacket.PacketTypeCode:
+					return "SUBSCRIBE";
+				case SubackPacket.PacketTypeCode:
+					return "SUBACK";
+				case UnsubscribePacket.PacketTypeCode:
+					return "UNSUBSCRIBE";
+				case UnsubackPacket.PacketTypeCode:
+					return "UNSUBACK";
+
+				case PingreqPacket.PacketTypeCode:
+					return "PINREQ";
+				case PingrespPacket.PacketTypeCode:
+					return "PINGRESP";
+
+				case DisconnectPacket.PacketTypeCode:
+					return "DISCONNECT";
+
+				default:
+					return "???";
+			}
+		}
 	}
 }
 

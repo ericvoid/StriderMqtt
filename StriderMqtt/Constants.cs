@@ -82,4 +82,24 @@ namespace StriderMqtt
 		ExactlyOnceGranted = 0x02,
 		SubscriptionFailed = 0x80
 	}
+
+    static class Conversions
+    {
+        internal static int MillisToMicros(int millis)
+        {
+            long total = 1000L * millis;
+            if (total > int.MaxValue)
+            {
+                return int.MaxValue;
+            }
+            else if (total < int.MinValue)
+            {
+                return int.MinValue;
+            }
+            else
+            {
+                return (int)total;
+            }
+        }
+    }
 }

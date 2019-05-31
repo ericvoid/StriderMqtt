@@ -11,6 +11,10 @@ namespace StriderMqtt
 		internal MqttClientException(string message) : base(message)
 		{
 		}
+
+		public MqttClientException(string message, Exception innerException) : base(message, innerException)
+		{
+		}
 	}
 
 	/// <summary>

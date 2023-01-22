@@ -1,8 +1,9 @@
 using System;
 using System.IO;
-using SQLite;
 using System.Collections.Generic;
 using StriderMqtt;
+using System.Data.SQLite;
+using System.Data;
 
 namespace StriderMqtt.Sqlite
 {
@@ -35,7 +36,7 @@ namespace StriderMqtt.Sqlite
 			using (var trans = conn.BeginTransaction())
 			{
 				// stores packet ids for messages that are arriving from broker
-				using (var command = conn.CreateCommand())
+				using (SQLiteCommand command = conn.CreateCommand())
 				{
 					command.Transaction = trans;
 					command.CommandText = "CREATE TABLE IF NOT EXISTS incoming_flows " +
@@ -91,7 +92,7 @@ namespace StriderMqtt.Sqlite
 		{
 			object result;
 
-			using (var command = conn.CreateCommand())
+			using (SQLiteCommand command = conn.CreateCommand())
 			{
 				command.CommandText = @"SELECT 1 FROM incoming_flows
 					WHERE packet_id = @packet_id LIMIT 1";
@@ -155,7 +156,7 @@ namespace StriderMqtt.Sqlite
 		{
 			List<OutgoingFlow> result = new List<OutgoingFlow>();
 
-			using (var command = conn.CreateCommand())
+			using (SQLiteCommand command = conn.CreateCommand())
 			{
 				command.CommandText = @"SELECT packet_id, retain, topic, qos, payload, received
 					FROM outgoing_flows

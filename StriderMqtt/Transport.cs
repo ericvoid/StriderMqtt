@@ -89,7 +89,7 @@ namespace StriderMqtt
             {
                 if (ip.AddressFamily == AddressFamily.InterNetworkV6)
                 {
-                    return new TcpClient(AddressFamily.InterNetworkV6);
+                    //return new TcpClient(AddressFamily.InterNetworkV6);
                 }
                 else if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {

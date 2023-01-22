@@ -41,16 +41,25 @@ namespace EmptyPublishing
 
 		public void Run()
 		{
-			var connArgs = new MqttConnectionArgs()
-			{
-				ClientId = this.ClientId,
-				Hostname = "localhost",
-				Port = 1883,
-				Secure = true,
-				CleanSession = false
-			};
+            //var connArgs = new MqttConnectionArgs()
+            //{
+            //	ClientId = this.ClientId,
+            //	Hostname = "localhost",
+            //	Port = 1883,
+            //	Secure = true,
+            //	CleanSession = false
+            //};
 
-			using (var conn = new MqttConnection(connArgs, persistence))
+            var connArgs = new MqttConnectionArgs()
+            {
+                ClientId = this.ClientId,
+                Hostname = "cargo",
+                Port = 1883,
+                Secure = true,
+                CleanSession = false
+            };
+
+            using (var conn = new MqttConnection(connArgs, persistence))
 			{
 				conn.Connect();
 				Console.WriteLine("{0} connected", ClientId);

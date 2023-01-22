@@ -94,7 +94,7 @@ namespace StriderMqtt
 	/// <summary>
 	/// In memory persistence.
 	/// This persistence support multiple incoming and outgoing messages,
-	/// aldough ordering is only guaranteed when only one message is inflight per direction.
+	/// although ordering is only guaranteed when only one message is inflight per direction.
 	/// </summary>
 	public class InMemoryPersistence : IMqttPersistence, IDisposable
 	{

@@ -1,15 +1,18 @@
 using System;
 using System.IO;
-using Mono.Data.Sqlite;
 using System.Collections.Generic;
 using StriderMqtt;
+using System.Data.SQLite;
+using System.Data;
+
 
 namespace NumbersTest
 {
 	public class NumbersPersistence : IDisposable
 	{
 		readonly string ConnectionString;
-		public SqliteConnection conn { get; private set; }
+
+		public SQLiteConnection conn { get; private set; }
 
 		public NumbersPersistence(string filename)
 		{
@@ -17,10 +20,10 @@ namespace NumbersTest
 
 			if (!File.Exists(filename))
 			{
-				SqliteConnection.CreateFile(filename);
+                SQLiteConnection.CreateFile(filename);
 			}
 
-			this.conn = new SqliteConnection(ConnectionString);
+			this.conn = new SQLiteConnection(ConnectionString);
 			this.conn.Open();
 
 			CreateTables();
@@ -65,7 +68,7 @@ namespace NumbersTest
 
 		public void RegisterReceivedNumber(string topic, int number)
 		{
-			using (var trans = conn.BeginTransaction())
+			using (SQLiteTransaction trans = conn.BeginTransaction())
 			{
 				using (var command = conn.CreateCommand())
 				{
@@ -82,7 +85,7 @@ namespace NumbersTest
 			}
 		}
 
-		void UpdateLastReceivedPerTopic(string topic, int number, SqliteTransaction trans)
+		void UpdateLastReceivedPerTopic(string topic, int number, SQLiteTransaction trans)
 		{
 			// check if row exists for the given topic to insert (if not exists) or update (if exists)
 			object result;
@@ -143,7 +146,7 @@ namespace NumbersTest
 					command.Transaction = trans;
 					command.CommandText = "SELECT number FROM last_received_per_topic";
 
-					SqliteDataReader reader = command.ExecuteReader();
+					SQLiteDataReader reader = command.ExecuteReader();
 					while (reader.Read())
 					{
 						if (reader.GetInt32(0) < maxNumber)
@@ -178,14 +181,14 @@ namespace NumbersTest
 
 		public void RegisterPublishedNumber(int n)
 		{
-			using (var trans = conn.BeginTransaction())
+			using (SQLiteTransaction trans = conn.BeginTransaction())
 			{
 				RegisterPublishedNumber(n, trans);
 				trans.Commit();
 			}
 		}
 
-		void RegisterPublishedNumber(int n, SqliteTransaction trans)
+		void RegisterPublishedNumber(int n, SQLiteTransaction trans)
 		{
 			using (var command = conn.CreateCommand())
 			{
